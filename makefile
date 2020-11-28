@@ -2,6 +2,7 @@ CC = g++
 PC = protoc
 CFLAGS += -std=c++11
 PROTOBUF_LIB := `pkg-config --cflags --libs protobuf`
+OPENSSL_FLAGS :=  -I/usr/local/opt/openssl@1.1/include -L/usr/local/opt/openssl@1.1/lib -lcrypto
 
 # Sources files to be compiled
 SOURCES = \
@@ -15,6 +16,9 @@ OBJECTS = $(addprefix $(BUILD_DIR)/, $(notdir $(SOURCES:.cpp=.o)))
 
 client: $(OBJECTS)
 	$(CC) $(CFLAGS) $(PROTOBUF_LIB) $^ -o $@ -g
+
+blockchain_test: blockchain_test.cpp
+	$(CC) $(CFLAGS) $(OPENSSL_FLAGS) $^ -o $@
 
 # message: Msg.proto
 # 	$(PC) -I=. --cpp_out=. ./Msg.proto
