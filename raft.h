@@ -1,6 +1,9 @@
 #pragma once
 #include <stdint.h>
 
+#define ELECTION_TIMEOUT_MS     2000
+
+
 typedef uint32_t term_t;
 
 typedef struct {

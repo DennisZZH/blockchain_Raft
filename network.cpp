@@ -148,3 +148,8 @@ void Network::receive_message(int id) {
     close(clients_info[id].socket);
     clients_info[id].valid = false;
 }
+
+void Network::pop_message(msg_t &msg) {
+    // TODO: Pop out a message at the front of the queue.
+    // TODO: Fill in the msg.
+}
