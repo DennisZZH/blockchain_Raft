@@ -6,8 +6,9 @@ OPENSSL_FLAGS :=  -I/usr/local/opt/openssl@1.1/include -L/usr/local/opt/openssl@
 
 # Sources files to be compiled
 SOURCES = \
-client.cpp 	\
+server.cpp 	\
 network.cpp \
+state.cpp \
 main.cpp
 
 BUILD_DIR = build
@@ -15,7 +16,7 @@ BUILD_DIR = build
 OBJECTS = $(addprefix $(BUILD_DIR)/, $(notdir $(SOURCES:.cpp=.o)))
 
 client: $(OBJECTS)
-	$(CC) $(CFLAGS) $(PROTOBUF_LIB) $^ -o $@ -g
+	$(CC) $(CFLAGS) $(PROTOBUF_LIB) $(OPENSSL_FLAGS) $^ -o $@ -g
 
 blockchain_test: blockchain_test.cpp
 	$(CC) $(CFLAGS) $(OPENSSL_FLAGS) $^ -o $@
@@ -25,10 +26,10 @@ blockchain_test: blockchain_test.cpp
 
 
 $(BUILD_DIR)/%.o: %.cpp	$(BUILD_DIR)
-	$(CC) $(CFLAGS) $(PROTOBUF_LIB) -c $^ -o $@ -g
+	$(CC) $(CFLAGS) $(PROTOBUF_LIB) $(OPENSSL_FLAGS) -c $^ -o $@ -g
 
 $(BUILD_DIR):
 	mkdir $@
 
 clean:
-	rm -rf build client
+	rm -rf build client blockchain_test

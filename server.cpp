@@ -1,6 +1,7 @@
 #include "network.h"
 #include "raft.h"
 #include "server.h"
+#include "state.h"
 
 Server::Server() {
     curr_term = 0;
@@ -14,7 +15,6 @@ Server::~Server() {
     if (curr_state != NULL) {
         delete curr_state;
     }
-
     if (next_state != NULL) {
         delete next_state;
     } 
