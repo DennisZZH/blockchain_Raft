@@ -2,11 +2,16 @@
 #include "network.h"
 #include "blockchain.h"
 
+#define SERVER_COUNT 3
+
 // declare State class.
 class State;
 
 class Server {
 private:
+    int id;
+    Network* network;
+
     // raft related
     term_t curr_term;
     int voted_candidate;
@@ -17,9 +22,12 @@ private:
     State* next_state;
 
 public:
-    Server();
+    Server(int id);
     ~Server();
-    
+
+    int get_id() {return id;};
+    Network* get_network() {return network;};
+
     // state related
     void run_state();
     void set_state(State* state);

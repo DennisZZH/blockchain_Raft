@@ -3,7 +3,10 @@
 #include "server.h"
 #include "state.h"
 
-Server::Server() {
+Server::Server(int id) {
+    this->id = id;
+    network = new Network(id);
+
     curr_term = 0;
     voted_candidate = -1;
     blockchain = Blockchain();
@@ -17,7 +20,10 @@ Server::~Server() {
     }
     if (next_state != NULL) {
         delete next_state;
-    } 
+    }
+    if (network != NULL) {
+        delete network;
+    }
 }
 
 void Server::set_state(State* state) {

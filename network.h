@@ -25,28 +25,30 @@ typedef enum {
     APP_ENTR_RPL                // append entry reply
 } msg_type_t;
 
-typedef struct {
+struct msg_t{
     msg_type_t type;            // type determines which struct we should cast the message payload to.
     void* payload;              // cast this one to one of the message struct.
-} msg_t;
+};
 
 class Network {
 private:    
     int client_id;
-    int socket_fd;                                  // The sock fd this client binds to.
+    int socket_fd;                                                      // The sock fd this client binds to.
     bool stop_flag = false;
     client_info_t clients_info[MAX_CLIENT_NUM];
     
-    std::deque<msg_t> server_message_queue;        // The message buffer between the server.
+    std::deque<msg_t> server_message_queue;                             // The message buffer between the server.
 
-    std::thread wait_thread;                        // Thread for listening & accepting connections from peers.
-    std::thread conn_thread;                        // Thread for connecting to other peers.
+    std::thread wait_thread;                                            // Thread for listening & accepting connections from peers.
+    std::thread conn_thread;                                            // Thread for connecting to other peers.
     void setup_server();
-    void wait_connection();                         // Thread function for listening & accepting connections.
-    void setup_connections();                       // Thread function for connecting to lower id sites.
-    void receive_message(int id);                   // Thread function for recving messages from peers. Index is used for freeing the client slot.
+    void wait_connection();                                             // Thread function for listening & accepting connections.
+    void setup_connections();                                           // Thread function for connecting to lower id sites.
+    void receive_message(int id);                                       // Thread function for recving messages from peers. Index is used for freeing the client slot.
     
 public:
     Network(int id);
-    void pop_message(msg_t& msg);                   // Pop the message saved in the message queue and fill the info into msg.
+    void send_message(msg_t &msg, int id = -1);                         // Send the message to the served identified by the id. If id == -1, send to all.
+    void pop_message(msg_t &msg);                                       // Pop the message saved in the message queue and fill the info into msg.
+    size_t get_message_count();                                         // Get the count in the message buffer.
 };

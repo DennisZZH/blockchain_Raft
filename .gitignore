@@ -1,3 +1,7 @@
+# executable
+client
+blockchain_test
+
 # Prerequisites
 *.d
 

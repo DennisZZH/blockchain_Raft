@@ -149,7 +149,20 @@ void Network::receive_message(int id) {
     clients_info[id].valid = false;
 }
 
+void Network::send_message(msg_t &msg, int id) {
+    return;
+}
+
 void Network::pop_message(msg_t &msg) {
     // TODO: Pop out a message at the front of the queue.
     // TODO: Fill in the msg.
 }
+
+size_t Network::get_message_count() {
+    return server_message_queue.size();
+}
+
+
+
+
+
