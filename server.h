@@ -1,7 +1,9 @@
 #pragma once
 #include "network.h"
 #include "blockchain.h"
-#include "state.h"
+
+// declare State class.
+class State;
 
 class Server {
 private:

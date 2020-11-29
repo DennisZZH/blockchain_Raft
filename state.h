@@ -5,8 +5,8 @@ class State {
 private:
     Server* context;
 public:
-    State(Server* context);
-    virtual void run();
+    State(Server* context) {this->context = context;};
+    virtual void run() {};
 };
 
 class CandidateState : public State {

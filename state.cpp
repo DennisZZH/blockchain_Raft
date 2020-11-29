@@ -2,6 +2,7 @@
 #include <ctime>
 #include "state.h"
 #include "raft.h"
+#include "server.h"
 
 void CandidateState::run() {
     auto election_timestamp = std::chrono::system_clock::now();
@@ -22,9 +23,9 @@ void CandidateState::run() {
 }
 
 void FollowerState::run() {
-
+    return;
 }
 
 void LeaderState::run() {
-
+    return;
 }
