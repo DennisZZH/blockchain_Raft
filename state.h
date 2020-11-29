@@ -1,29 +1,28 @@
 #pragma once
+#include "server.h"
 
 class State {
+private:
+    Server* context;
 public:
-    State();
-    ~State();
+    State(Server* context);
     virtual void run();
 };
 
 class CandidateState : public State {
 public:
-    CandidateState();
-    ~CandidateState();
+    CandidateState(Server* context) : State(context) {};
     void run() override;
 };
 
 class FollowerState : public State {
 public:
-    FollowerState();
-    ~FollowerState();
+    FollowerState(Server* context) : State(context) {};
     void run() override;
 };
 
 class LeaderState : public State {
 public:
-    LeaderState();
-    ~LeaderState();
+    LeaderState(Server* context) : State(context) {};
     void run() override;
 };
