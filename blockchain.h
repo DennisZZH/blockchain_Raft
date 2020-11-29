@@ -6,9 +6,9 @@
 #include <sstream>
 #include <openssl/sha.h>
 
-class transaction {
+class Transaction {
     public:
-        transaction(uint32_t sid, uint32_t rid, float amt) : sender_id(sid), recver_id(rid), amount(amt) {};
+        Transaction(uint32_t sid, uint32_t rid, float amt) : sender_id(sid), recver_id(rid), amount(amt) {};
         uint32_t get_sender_id() {return sender_id;};
         uint32_t get_recver_id() {return recver_id;};
         float get_amount() {return amount;};
@@ -23,9 +23,9 @@ class transaction {
         float amount;  
 };
 
-class block {
+class Block {
     public:
-        block(uint32_t term_num, const std::vector<transaction> &txns) {
+        Block(uint32_t term_num, const std::vector<Transaction> &txns) {
             term = term_num;
             if (txns.size() > 3) {
                 std::cerr<<"Block's Maximum capacity exceed!"<<std::endl;
@@ -39,7 +39,7 @@ class block {
         uint32_t get_term() {return term;};
         std::string get_phash() {return phash;};
         std::string get_nonce() {return nonce;};
-        std::vector<transaction> get_trans() {return trans;};
+        std::vector<Transaction> get_trans() {return trans;};
 
         void set_phash(std::string prev_hash) {phash = prev_hash;};
 
@@ -79,7 +79,7 @@ class block {
         uint32_t term;          // The current term number
         std::string phash;      // The hash of previous block
         std::string nonce;      // The nonce of current block
-        std::vector<transaction> trans;
+        std::vector<Transaction> trans;
 
         std::string find_nonce() {
             std::string txns_hash = "";
@@ -98,13 +98,13 @@ class block {
         }
 };
 
-class blockchain {
+class Blockchain {
     public:
-        blockchain() {
+        Blockchain() {
             
         }
         
-        void add_block(block &newblo) {
+        void add_block(Block &newblo) {
             if (!blos.empty()) {
                 newblo.set_phash(blos.back().find_hash());
             }
@@ -119,5 +119,5 @@ class blockchain {
             }
         }
     private:
-        std::vector<block> blos;
+        std::vector<Block> blos;
 };

@@ -1,13 +1,16 @@
-#include "context.h"
-#include <iostream>
+#include "network.h"
+#include "raft.h"
+#include "server.h"
 
-Context::Context() {
-    curr_state = NULL;          
-    set_state(new CandidateState());    // Everyone starts from the candidate state.
-    
+Server::Server() {
+    curr_term = 0;
+    voted_candidate = -1;
+    blockchain = Blockchain();
+    curr_state = NULL;
+    set_state(new CandidateState(this));
 }
 
-Context::~Context() {
+Server::~Server() {
     if (curr_state != NULL) {
         delete curr_state;
     }
@@ -17,23 +20,14 @@ Context::~Context() {
     } 
 }
 
-/**
- * @brief set the state machine to transition to a new state in the following step.
- * 
- * @param state 
- */
-void Context::set_state(State* state) {
+void Server::set_state(State* state) {
     if (state == NULL) {
         return;
     }
     next_state = state;
 }
 
-/**
- * @brief run the state machine for one step.
- * 
- */
-void Context::run_state() {
+void Server::run_state() {
     // if the next_state is not null, it means there should be a transition to a new state.
     if (next_state != NULL) {
         if (curr_state != NULL) {
@@ -50,5 +44,4 @@ void Context::run_state() {
 
     curr_state->run();
 }
-
 

@@ -1,4 +1,4 @@
-#include "client.h"
+#include "server.h"
 #include "network.h"
 
 const char* usage = "Run the program by typing ./client <cid> where cid is within range [0, 2].";

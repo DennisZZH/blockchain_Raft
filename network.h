@@ -2,6 +2,7 @@
 #include <iostream>
 #include <stdint.h>
 #include <thread>
+#include <deque>
 #include "raft.h"
 
 #define CLIENT_IP           "127.0.0.1"
@@ -32,9 +33,11 @@ typedef struct {
 class Network {
 private:    
     int client_id;
-    int socket_fd;                                 // The sock fd this client binds to.
+    int socket_fd;                                  // The sock fd this client binds to.
     bool stop_flag = false;
     client_info_t clients_info[MAX_CLIENT_NUM];
+    
+    std::deque<msg_t> server_message_queue;        // The message buffer between the server.
 
     std::thread wait_thread;                        // Thread for listening & accepting connections from peers.
     std::thread conn_thread;                        // Thread for connecting to other peers.
@@ -45,4 +48,5 @@ private:
     
 public:
     Network(int id);
+    void pop_message(msg_t& msg);                   // Pop the message saved in the message queue and fill the info into msg.
 };
