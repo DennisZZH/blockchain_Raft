@@ -34,7 +34,8 @@ public:
 
     // raft related
     term_t increment_term() {return ++curr_term;};               // increse the term and return the new term value.
-    term_t get_curr_term() {return curr_term;};                 
+    term_t get_curr_term() {return curr_term;};
+    void clear_voted_candidate() {voted_candidate = -1;};                        
     void set_voted_candidate(int candidate_id) {voted_candidate = candidate_id;};
     int get_voted_candidate() {return voted_candidate;};
     Blockchain& get_blockchain() {return blockchain;}; 

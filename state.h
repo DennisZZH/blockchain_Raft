@@ -7,10 +7,12 @@ private:
 
 protected:
     const uint32_t MSG_CHECK_SLEEP_MS = 50;
+    uint32_t curr_election_timeout;
 
 public:
     State(Server* context) {this->context = context;};
     Server* get_context() {return context;};
+    void gen_election_timeout() {curr_election_timeout = ELECTION_TIMEOUT_MS / 2 + rand() % (ELECTION_TIMEOUT_MS / 2);};
     virtual void run() {};
 };
 

@@ -7,13 +7,13 @@
 // Candidate State
 void CandidateState::run() {
     Network* network = get_context()->get_network();
-    
-    // Need to reset the vote count before others vote for me
-    vote_count = 0;
+        
+    gen_election_timeout();
 
     // Increment the current term, and vote for myself
     term_t term = get_context()->increment_term();
     get_context()->set_voted_candidate(get_context()->get_id());
+    vote_count = 1;
 
     // Reset the election timeout timer
     auto election_timestamp = std::chrono::system_clock::now();
@@ -24,13 +24,14 @@ void CandidateState::run() {
     // rpc->last_log_term = 
     rpc->term = term;
     
-    msg_t msg;
-    msg.type = REQ_VOTE_RPC;
-    msg.payload = rpc;
+    msg_t send_msg;
+    send_msg.type = REQ_VOTE_RPC;
+    send_msg.payload = rpc;
     // Send the message to other servers
-    network->send_message(msg);
+    network->send_message(send_msg);
     delete rpc;
 
+    msg_t recv_msg;
     while(true) {
         // Get the time difference first for checking the timeout.
         auto curr_timestamp = std::chrono::system_clock::now();
@@ -38,7 +39,7 @@ void CandidateState::run() {
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(dt);
 
         // if the election is not finished within the timeout, need to end the current election.
-        if (ms.count() > ELECTION_TIMEOUT_MS) {
+        if (ms.count() > curr_election_timeout) {
             goto exit;
         }
         
@@ -48,31 +49,44 @@ void CandidateState::run() {
             continue;
         }
 
-        network->pop_message(msg);
-        if (msg.type == REQ_VOTE_RPC) {
-            // Check term
-            // Compare the log completion
-            // Give vote?
-            // REVIEW: How should I deal with the candidate id.
-            // REVIEW: What if there are same, break tie using pid?
-            // REVIEW: If all of the people are in candidate mode, can they vote for other people? They already vote for themselves.
-        } else if (msg.type == REQ_VOTE_RPL) {
-            auto v_reply = (request_vote_reply_t*)msg.payload;
-            // If the reply term is higher then the current term, it means I am slow so I need to step down.
-            // REVIEW: Step down to be what, follower?
-            if (v_reply->term > get_context()->get_curr_term()) {
+        network->pop_message(recv_msg);
+        if (recv_msg.type == REQ_VOTE_RPC) {
+            auto vote_rpc = (request_vote_rpc_t*)recv_msg.payload;
+            // If the term is lower then the current term, then ignore.
+            if (vote_rpc->term < get_context()->get_curr_term()) {
+                continue;
+            }
+            // If the term is higher than mine,  then I should step down.
+            if (vote_rpc->term > get_context()->get_curr_term()) {
                 get_context()->set_state(new FollowerState(get_context()));
                 goto exit;
             }
-            else if (v_reply->term == get_context()->get_curr_term() && v_reply->vote_granted) {
+            // Reject the vote request because I already voted for myself.
+            request_vote_reply_t vote_rpl = {0};
+            vote_rpl.term = get_context()->get_curr_term();
+            vote_rpl.vote_granted = false;
+            // Wrap the reply with the msg_t for sending.
+            send_msg.type = REQ_VOTE_RPL;
+            send_msg.payload = &vote_rpl;
+            network->send_message(send_msg, vote_rpc->candidate_id);
+
+        } else if (recv_msg.type == REQ_VOTE_RPL) {
+            auto vote_reply = (request_vote_reply_t*)recv_msg.payload;
+            // If the reply term is higher then the current term, it means I am slow so I need to step down.
+            // REVIEW: Step down to be what, follower?
+            if (vote_reply->term > get_context()->get_curr_term()) {
+                get_context()->set_state(new FollowerState(get_context()));
+                goto exit;
+            }
+            else if (vote_reply->term == get_context()->get_curr_term() && vote_reply->vote_granted) {
                 // If got the majority of votes, then proceed.
                 if (++vote_count >= SERVER_COUNT / 2 + 1) {
                     get_context()->set_state(new LeaderState(get_context()));
                     goto exit;
                 }
             }
-        } else if (msg.type == APP_ENTR_RPC) {
-            auto append_rpc = (append_entry_rpc_t*)msg.payload;
+        } else if (recv_msg.type == APP_ENTR_RPC) {
+            auto append_rpc = (append_entry_rpc_t*)recv_msg.payload;
             // REVIEW: The new elected leader should have the same or larger term.
             // The new leader should send a empty heartbeat, so shouldn't need to append.
             if (append_rpc->term >= get_context()->get_curr_term()) {
@@ -80,15 +94,15 @@ void CandidateState::run() {
                 goto exit;
             }
         } else {
-            // For other cases, we can ignore. But need to free the dynamic memory taken by the msg.
-            free(msg.payload);
-            msg.payload = NULL;
+            // For other cases, we can ignore. But need to free the dynamic memory taken by the recv_msg.
+            free(recv_msg.payload);
+            recv_msg.payload = NULL;
         }
     }
 
 exit:
-    if (msg.payload != NULL) {
-        free(msg.payload);
+    if (recv_msg.payload != NULL) {
+        free(recv_msg.payload);
     }
     return; 
 }
@@ -96,7 +110,8 @@ exit:
 // Follower State
 void FollowerState::run() {
     Network* network = get_context()->get_network();
-    
+
+    gen_election_timeout();
     auto last_time = std::chrono::system_clock::now();
     auto curr_time = last_time;
 
@@ -106,7 +121,7 @@ void FollowerState::run() {
         auto dt = curr_time - last_time;
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(dt);
         
-        if (ms.count() > HEARTBEAT_TIMEOUT_MS) {
+        if (ms.count() > curr_election_timeout) {
             get_context()->set_state(new CandidateState(get_context()));
             goto exit;
         }
@@ -171,7 +186,7 @@ void LeaderState::send_heartbeat() {
 }
 
 
-void LeaderState::run() {
+void LeaderState::run() { 
     // Need to send the initial heartbeat first.
     send_heartbeat();
     while (true) {

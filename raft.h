@@ -1,13 +1,13 @@
 #pragma once
 #include <stdint.h>
 
-#define ELECTION_TIMEOUT_MS     2000
-#define HEARTBEAT_PERIOD_MS        250
-#define HEARTBEAT_TIMEOUT_MS       500
+#define ELECTION_TIMEOUT_MS     500
+#define HEARTBEAT_PERIOD_MS     100
 
 typedef uint32_t term_t;
 
 struct request_vote_rpc_t{
+    int candidate_id;               // the candidate's id who is requesting votes
     term_t term;                    // candidate's term
     term_t last_log_term;           // the term of the last log
     int last_log_index;             // last log's index

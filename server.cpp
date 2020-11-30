@@ -10,8 +10,10 @@ Server::Server(int id) {
     curr_term = 0;
     voted_candidate = -1;
     blockchain = Blockchain();
+
+    // Start with FollowerState
     curr_state = NULL;
-    set_state(new CandidateState(this));
+    set_state(new FollowerState(this));
 }
 
 Server::~Server() {
