@@ -4,6 +4,7 @@
 #include "raft.h"
 #include "server.h"
 
+// Candidate State
 void CandidateState::run() {
     Network* network = get_context()->get_network();
     
@@ -84,6 +85,7 @@ void CandidateState::run() {
             msg.payload = NULL;
         }
     }
+
 exit:
     if (msg.payload != NULL) {
         free(msg.payload);
@@ -91,10 +93,105 @@ exit:
     return; 
 }
 
+// Follower State
 void FollowerState::run() {
+    Network* network = get_context()->get_network();
+    
+    auto last_time = std::chrono::system_clock::now();
+    auto curr_time = last_time;
+
+    while (true) {
+        
+        auto curr_time = std::chrono::system_clock::now();
+        auto dt = curr_time - last_time;
+        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(dt);
+        
+        if (ms.count() > HEARTBEAT_TIMEOUT_MS) {
+            get_context()->set_state(new CandidateState(get_context()));
+            goto exit;
+        }
+
+        if (network->get_message_count() == 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(MSG_CHECK_SLEEP_MS));
+            continue;
+        }
+
+        // Receiving valid PRC
+        msg_t msg;
+        network->pop_message(msg);
+        if (msg.type == APP_ENTR_RPC) {
+            auto append_rpc = (append_entry_rpc_t*) msg.payload;
+            if (append_rpc->term < get_context()->get_curr_term()) {
+                continue;
+            }
+            // Update the timestamp if the term is the lastest term.
+            last_time = std::chrono::system_clock::now();
+            
+            // REVIEW: Check if the append RPC is just a heartbeat.
+            // REVIEW: Don't need to reply?
+            if (append_rpc->entry_count == 0) {
+                continue;
+            }
+
+            // TODO: Implement the raft sync algorithm.
+
+
+        } else if (msg.type == REQ_VOTE_RPC) {
+            auto vote_rpc = (request_vote_rpc_t*) msg.payload;
+            // Make sure the candidate has the newer term.
+            if (vote_rpc->term <= get_context()->get_curr_term()) {
+                continue;
+            }
+
+            // TODO: Need to compare with the latest term I got.
+        } 
+        // REVIEW: Simply ignore other messages
+    }
+exit:
     return;
 }
 
+// Leader State 
+void LeaderState::send_heartbeat() {
+    append_entry_rpc_t* heartbeat = new append_entry_rpc_t();
+    heartbeat->term = get_context()->get_curr_term();
+    heartbeat->leader_id = get_context()->get_id();
+    heartbeat->entry_count = 0;                                     // Heartbeat doesn't contain any log.
+    
+    // Need to wrap the heartbeat with msg_t because it's the msg used by the network.
+    msg_t msg;
+    msg.type = APP_ENTR_RPC;
+    msg.payload = heartbeat;
+
+    // Transmit the heartbeat.
+    get_context()->get_network()->send_message(msg);
+    delete heartbeat;
+
+    last_heartbeat_time = std::chrono::system_clock::now();
+}
+
+
 void LeaderState::run() {
+    // Need to send the initial heartbeat first.
+    send_heartbeat();
+    while (true) {
+        auto curr_time = std::chrono::system_clock::now();
+        auto dt = curr_time - last_heartbeat_time;
+        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(dt);
+        
+        if (ms.count() >= HEARTBEAT_PERIOD_MS) {
+            send_heartbeat();
+            continue;
+        }
+
+        // TODO: Calculate next_index for each entry.
+        // REVIEW: How to get the lastest log entry from the servers?
+
+        // TODO: Fetch the client command.
+        // TODO: Append new entry to local.
+        // TODO: Do the sync if the last log index >= next_index. If fails decrement next_index aand retry.
+        // TODO: Mark log commited if stored on a majority and at least one entry stored in the current term.
+        // TODO: Step down if the current term changes.
+    }
     return;
 }

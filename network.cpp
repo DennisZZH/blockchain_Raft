@@ -153,6 +153,12 @@ void Network::send_message(msg_t &msg, int id) {
     return;
 }
 
+/**
+ * @brief This function should fill the msg using the info of the first msg in the buffer and delete
+ *        the first msg in the buffer.
+ * 
+ * @param msg 
+ */
 void Network::pop_message(msg_t &msg) {
     // TODO: Pop out a message at the front of the queue.
     // TODO: Fill in the msg.

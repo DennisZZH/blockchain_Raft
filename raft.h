@@ -2,7 +2,8 @@
 #include <stdint.h>
 
 #define ELECTION_TIMEOUT_MS     2000
-
+#define HEARTBEAT_PERIOD_MS        250
+#define HEARTBEAT_TIMEOUT_MS       500
 
 typedef uint32_t term_t;
 
