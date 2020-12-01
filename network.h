@@ -45,8 +45,6 @@ struct msg_t{
 
 class Network {
 private:
-    static const uint32_t RECYCLE_CHECK_SLEEP_MS = 50;                  // The sleep time until check next time if the queue is empty.
-
     int server_id;
     int replica_server_fd;                                              // The socket fd used to listen replica connections.
     int client_server_fd;                                               // The socket fd used to listen client connections.
@@ -75,9 +73,9 @@ private:
     void receive_clients_message(client_info_t* client_info);           // Thread function for receiving clients message.
     void recycle_clients();                                             // Thread function for recycling unconnected clients.
 
-    
-
 public:
+    const uint32_t RECYCLE_CHECK_SLEEP_MS = 50;                  // The sleep time until check next time if the queue is empty.
+    
     Network(int id);
     void send_message(msg_t &msg, int id = -1);                         // Send the message to the served identified by the id. If id == -1, send to all.
     void pop_message(msg_t &msg);                                       // Pop the message saved in the message queue and fill the info into msg.

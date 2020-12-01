@@ -8,4 +8,4 @@ public:
     void connect_server();      
     void send_transaction();    
     void send_balance();
-}
+};

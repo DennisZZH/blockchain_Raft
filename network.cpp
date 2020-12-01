@@ -1,9 +1,10 @@
-#include "network.h"
 #include <cstdlib>
 #include <iostream>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <unistd.h>
+#include "network.h"
+
 
 
 Network::Network(int id) {
@@ -200,7 +201,7 @@ void Network::wait_clients() {
         client_info_t* client_info = new client_info_t();
         client_info->socket = client_socket;
         client_info->valid = true;
-        client_info->task = std::thread(Network::receive_clients_message, client_info);
+        client_info->task = std::thread(&Network::receive_clients_message, this, client_info);
     }
 }
 
