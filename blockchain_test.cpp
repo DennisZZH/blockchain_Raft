@@ -2,19 +2,19 @@
 #include <iostream>
 #include <string>
 #include <vector>
-#include "blockchain.cpp"
+#include "blockchain.h"
 
 using namespace std;
 
 int main() {
 
-    transaction txn1(1,2,25.5);
-    transaction txn2(2,3,60.9);
-    transaction txn3(4,5,90.32);
-    transaction txn4(4,2,110.0);
-    transaction txn5(1,5,20.59);
-    transaction txn6(3,4,290.0);
-    transaction txn7(4,2,45.4);
+    Transaction txn1(1,2,25.5);
+    Transaction txn2(2,3,60.9);
+    Transaction txn3(4,5,90.32);
+    Transaction txn4(4,2,110.0);
+    Transaction txn5(1,5,20.59);
+    Transaction txn6(3,4,290.0);
+    Transaction txn7(4,2,45.4);
 
     cout<<"Test: print_transaction(): "<<endl;
     txn1.print_transaction();
@@ -26,7 +26,7 @@ int main() {
     txn7.print_transaction();
     cout<<endl;
 
-    vector<transaction> l1,l2,l3;
+    vector<Transaction> l1,l2,l3;
     l1.push_back(txn1);
     l1.push_back(txn2);
     l1.push_back(txn3);
@@ -38,9 +38,9 @@ int main() {
     l3.push_back(txn7);
 
 
-    block b1(0, l1);
-    block b2(0, l2);
-    block b3(0, l3);
+    Block b1(0, l1);
+    Block b2(0, l2);
+    Block b3(0, l3);
 
     cout<<"Test: print_block(): "<<endl;
     b1.print_block();
@@ -48,12 +48,9 @@ int main() {
     b3.print_block();
     cout<<endl;
 
-    blockchain bc;
-    bc.add_block(b1);
-    bc.add_block(b2);
-    bc.add_block(b3);
+    // TODO
     cout<<"Test: print_block_chain(): "<<endl;
-    bc.print_block_chain();
+    
 
     return 0;
 }
