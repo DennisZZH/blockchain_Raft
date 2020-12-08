@@ -9,6 +9,7 @@
 #include <sstream>
 #include <openssl/sha.h>
 #include "Msg.pb.h"
+#include "raft.h"
 
 class Transaction {
     public:
@@ -88,7 +89,7 @@ class Block {
         }
 
     private:
-        uint32_t term;          // The current term number
+        term_t term;          // The current term number
         std::string phash;      // The hash of previous block
         std::string nonce;      // The nonce of current block
         Transaction txn;        // A single transation

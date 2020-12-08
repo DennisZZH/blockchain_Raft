@@ -4,12 +4,16 @@
 #include "state.h"
 
 Server::Server(int id) {
+    // Initialize network
     this->id = id;
     network = new Network(id);
 
     curr_term = 0;
     voted_candidate = -1;
+    
+    // Construct blockchain by loading a file
     blockchain = Blockchain();
+    blockchain.load_file("bc_file_" + std::to_string(id));
 
     // Start with FollowerState
     curr_state = NULL;
