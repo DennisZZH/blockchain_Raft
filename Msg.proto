@@ -1,0 +1,19 @@
+syntax = "proto2";
+
+message txn_msg_t {
+    required uint32 sender_id = 1;
+    required uint32 recver_id = 2;
+    required float amount = 3;
+}
+
+message block_msg_t {
+    required uint32 term = 1;
+    required string phash = 2;
+    required string nonce = 3;
+    required txn_msg_t txn = 4;
+}
+
+message bc_msg_t {
+    required uint32 committed_index = 1;
+	repeated block_msg_t blocks = 3;
+}

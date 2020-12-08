@@ -8,9 +8,11 @@
 #include <iomanip>
 #include <sstream>
 #include <openssl/sha.h>
+#include "Msg.pb.h"
 
 class Transaction {
     public:
+        Transaction() {};
         Transaction(uint32_t sid, uint32_t rid, float amt) : sender_id(sid), recver_id(rid), amount(amt) {};
         uint32_t get_sender_id() {return sender_id;};
         uint32_t get_recver_id() {return recver_id;};
@@ -28,9 +30,9 @@ class Transaction {
 
 class Block {
     public:
-        Block(uint32_t term_num, std::vector<Transaction> v) {
+        Block(uint32_t term_num, Transaction &t) {
             term = term_num;
-            txns = v;
+            txn = t;
             phash = "NULL";
             nonce = find_nonce();
         }
@@ -39,7 +41,7 @@ class Block {
         uint32_t get_term() {return term;};
         std::string get_phash() {return phash;};
         std::string get_nonce() {return nonce;};
-        std::vector<Transaction> get_txns() {return txns;};
+        Transaction get_txn() {return txn;};
 
         std::string sha256(const std::string str){
             unsigned char hash[SHA256_DIGEST_LENGTH];
@@ -57,19 +59,14 @@ class Block {
 
         std::string find_hash(){
             std::string hashInfo = "";
-            for(int i = 0; i < txns.size(); i++){
-                hashInfo += txns[i].serialize_transaction();
-            }
+            hashInfo += txn.serialize_transaction();
             hashInfo += nonce;
             return sha256(hashInfo);
         }
 
         void print_block() {
             std::cout<<"Print Block: "<<std::endl;
-            for(int i = 0; i < txns.size(); i++){
-                std::cout<<"	";
-                txns[i].print_transaction();
-            }
+            txn.print_transaction();
 	        std::cout<<"    term = "<<term<<"; phash = "<<phash<<"; nonce = "<<nonce<<"; current_hash = "<<find_hash()<<std::endl;
         }
 
@@ -77,16 +74,14 @@ class Block {
         uint32_t term;          // The current term number
         std::string phash;      // The hash of previous block
         std::string nonce;      // The nonce of current block
-        std::vector<Transaction> txns;
+        Transaction txn;
 
         std::string find_nonce() {
             std::string txns_hash = "";
             std::string tempNounce;
             std::string hashInfo;
             srand(time(NULL));
-            for(int i = 0; i < txns.size(); i++){
-                txns_hash += txns[i].serialize_transaction();
-            }
+            txns_hash += txn.serialize_transaction();
             do{
                 tempNounce = std::string(1, char(rand()%26 + 97));
                 hashInfo = sha256(txns_hash + tempNounce);
@@ -107,26 +102,57 @@ class Blockchain {
         *   Postcondistion: A blockchain is initialized on memory from the file. Internally, each block is constructed in a way that it is fully filled,
         *   ie. each block contains maximum capacity (3) transactions, except maybe the last block contains fewer than 3
         */
-        Blockchain(std::string s) {
+        
+        Blockchain(std::string fname) {
             committed_index = 0;
-            filename = s;
+            filename = fname;
             parse_file_to_bc();
         }
 
-        // Helper function
         void parse_file_to_bc() {
             std::ifstream infile;
             infile.open(filename);
+            std::string bc_str, line;
+            if (infile.is_open()) {
+                while (getline (infile, line)){
+                    bc_str += line;
+                }
+            }
+            else {
+                std::cerr << "Error: blockchain.h : parse_file_to_bc(): Unable to open file!" << std::endl;
+                exit(0);
+            }
+            bc_msg_t bc_msg;
+            bc_msg.ParseFromString(bc_str);
+            committed_index = bc_msg.committed_index();
             // TODO
-            // Deserialize the file into a blockchain
+            // get blocks    
+
             infile.close();
         }
 
         void write_bc_to_file() {
             std::ofstream outfile;
             outfile.open(filename);
+
+            bc_msg_t bc_msg;
+            bc_msg.set_committed_index(committed_index);
+            for (auto &b : blocks) {
+                block_msg_t* block_msg_ptr = bc_msg.add_blocks();
+                txn_msg_t* txn_msg_ptr = new txn_msg_t();
+                txn_msg_ptr->set_sender_id(b.get_txn().get_sender_id());
+                txn_msg_ptr->set_recver_id(b.get_txn().get_recver_id());
+                txn_msg_ptr->set_amount(b.get_txn().get_amount());
+                block_msg_ptr->set_allocated_txn(txn_msg_ptr);
+                block_msg_ptr->set_term(b.get_term());
+                block_msg_ptr->set_phash(b.get_phash());
+                block_msg_ptr->set_nonce(b.get_nonce());
+            }
+            std::string bc_str = bc_msg.SerializeAsString();
             // TODO
-            // Serialize the bc into the file
+            // Need to over write the existed file, write from the begining
+            outfile << bc_str;
+
             outfile.close();
         }
 

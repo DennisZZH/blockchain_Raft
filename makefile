@@ -21,8 +21,8 @@ client: $(OBJECTS)
 blockchain_test: blockchain_test.cpp
 	$(CC) $(CFLAGS) $(OPENSSL_FLAGS) $^ -o $@
 
-# message: Msg.proto
-# 	$(PC) -I=. --cpp_out=. ./Msg.proto
+message: Msg.proto
+	$(PC) -I=. --cpp_out=. ./Msg.proto
 
 
 $(BUILD_DIR)/%.o: %.cpp	$(BUILD_DIR)
