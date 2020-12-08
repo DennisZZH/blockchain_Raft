@@ -361,6 +361,7 @@ class block_msg_t :
     kNonceFieldNumber = 3,
     kTxnFieldNumber = 4,
     kTermFieldNumber = 1,
+    kIndexFieldNumber = 5,
   };
   // required string phash = 2;
   bool has_phash() const;
@@ -430,6 +431,19 @@ class block_msg_t :
   void _internal_set_term(::PROTOBUF_NAMESPACE_ID::uint32 value);
   public:
 
+  // required uint32 index = 5;
+  bool has_index() const;
+  private:
+  bool _internal_has_index() const;
+  public:
+  void clear_index();
+  ::PROTOBUF_NAMESPACE_ID::uint32 index() const;
+  void set_index(::PROTOBUF_NAMESPACE_ID::uint32 value);
+  private:
+  ::PROTOBUF_NAMESPACE_ID::uint32 _internal_index() const;
+  void _internal_set_index(::PROTOBUF_NAMESPACE_ID::uint32 value);
+  public:
+
   // @@protoc_insertion_point(class_scope:block_msg_t)
  private:
   class _Internal;
@@ -444,6 +458,7 @@ class block_msg_t :
   ::PROTOBUF_NAMESPACE_ID::internal::ArenaStringPtr nonce_;
   ::txn_msg_t* txn_;
   ::PROTOBUF_NAMESPACE_ID::uint32 term_;
+  ::PROTOBUF_NAMESPACE_ID::uint32 index_;
   friend struct ::TableStruct_Msg_2eproto;
 };
 // -------------------------------------------------------------------
@@ -933,6 +948,34 @@ inline void block_msg_t::set_allocated_txn(::txn_msg_t* txn) {
   }
   txn_ = txn;
   // @@protoc_insertion_point(field_set_allocated:block_msg_t.txn)
+}
+
+// required uint32 index = 5;
+inline bool block_msg_t::_internal_has_index() const {
+  bool value = (_has_bits_[0] & 0x00000010u) != 0;
+  return value;
+}
+inline bool block_msg_t::has_index() const {
+  return _internal_has_index();
+}
+inline void block_msg_t::clear_index() {
+  index_ = 0u;
+  _has_bits_[0] &= ~0x00000010u;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint32 block_msg_t::_internal_index() const {
+  return index_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::uint32 block_msg_t::index() const {
+  // @@protoc_insertion_point(field_get:block_msg_t.index)
+  return _internal_index();
+}
+inline void block_msg_t::_internal_set_index(::PROTOBUF_NAMESPACE_ID::uint32 value) {
+  _has_bits_[0] |= 0x00000010u;
+  index_ = value;
+}
+inline void block_msg_t::set_index(::PROTOBUF_NAMESPACE_ID::uint32 value) {
+  _internal_set_index(value);
+  // @@protoc_insertion_point(field_set:block_msg_t.index)
 }
 
 // -------------------------------------------------------------------
