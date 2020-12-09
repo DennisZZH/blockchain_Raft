@@ -1,8 +1,6 @@
 #pragma once
 #include <stdint.h>
-
-#define ELECTION_TIMEOUT_MS     500
-#define HEARTBEAT_PERIOD_MS     100
+#include "parameter.h"
 
 typedef uint32_t term_t;
 

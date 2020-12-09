@@ -4,7 +4,6 @@
 #include <string>
 #include <vector>
 #include <queue>
-#include <thread>
 #include <iomanip>
 #include <sstream>
 #include <openssl/sha.h>
@@ -166,8 +165,7 @@ class Blockchain {
         }
 
         void write_block_to_file(Block &newblo) {
-            std::ofstream outfile;
-            outfile.open(filename);
+            std::ofstream outfile(filename, std::ios::app);
 
             block_msg_t block_msg;
             txn_msg_t* txn_msg_ptr = new txn_msg_t();

@@ -1,5 +1,6 @@
 #pragma once
 #include "server.h"
+#include "parameter.h"
 
 class State {
 private:
