@@ -1,6 +1,7 @@
 # executable
 client
 blockchain_test
+Msg.pb*
 
 # Prerequisites
 *.d
