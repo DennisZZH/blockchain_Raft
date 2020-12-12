@@ -5,6 +5,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include "client.h"
+#include "message.h"
 using namespace RaftClient;
 
 #define DEBUG_MODE
