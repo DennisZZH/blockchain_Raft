@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include "parameter.h"
+#include "blockchain.h"
 
 typedef uint32_t term_t;
 
@@ -13,7 +14,7 @@ struct request_vote_rpc_t{
 
 struct request_vote_reply_t{
     term_t term;                    // the term of the replier
-    int vote_granted;               // the candidate the replier voted for
+    bool vote_granted;              // the flag indicates if candidate got the vote
 };
 
 struct append_entry_rpc_t{
@@ -22,8 +23,8 @@ struct append_entry_rpc_t{
     term_t prev_log_term;           // the term of the log before the one to append
     int prev_log_index;             // the index of the log before the one to append
     int commit_index;               // the index of the commited last entry
-    size_t entry_count;             // the number of entries commited
-    // TODO: entries[];
+    // size_t entry_count;             // the number of entries commited
+    std::vector<Block> entries;
 };
 
 struct append_entry_reply_t{

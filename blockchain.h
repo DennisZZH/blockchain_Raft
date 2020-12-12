@@ -137,7 +137,12 @@ class Blockchain {
             if (infile.is_open()) {
 
                 getline(infile, line);
-                committed_index = std::stoi(line);
+                int index_val = 0;
+                for (int i = 0; i < line.length(); i++) {
+                    index_val *= 10;
+                    index_val += line[i] - '0';
+                }
+                committed_index = index_val;
 
                 while (getline (infile, line)){
                     block_str = line;
@@ -201,16 +206,47 @@ class Blockchain {
 
         void set_committed_index(uint32_t new_index) {
             committed_index = new_index;
-            std::ofstream outfile;
-            outfile.open(filename);
-            // TODO
             // Update the committed index on disk
-            outfile.close();
+            std::string index_str = "";
+            for (int i = 0; i < NUM_DIGITS_COMMITTED_INDEX; i++) {
+                int r = new_index % 10;
+                new_index /= 10;
+                index_str = index_str + std::to_string(r);
+            }
+            FILE *pFile = fopen(filename.c_str(), "r+");
+            fseek(pFile, 0, SEEK_SET);
+            fputs(index_str.c_str(), pFile);
+            fclose(pFile);
         }
 
         void clean_up_blocks(int index, std::vector<Block> ref) {
-            // TODO
-            // Leader clean up follower's logs
+            // Leader clean up follower's logs up to index
+            // Replace it with ref
+            for (int i = blocks.size() - 1; i >= index; i--) {
+                blocks.pop_back();
+            }
+            for (auto &b : ref) blocks.push_back(b);
+            write_bc_to_file();
+        }
+
+        void write_bc_to_file() {
+            std::ofstream outfile(filename, std::ios::trunc);
+            
+            int idx = committed_index;
+            std::string index_str = "";
+            for (int i = 0; i < NUM_DIGITS_COMMITTED_INDEX; i++) {
+                int r = idx % 10;
+                idx /= 10;
+                index_str = index_str + std::to_string(r);
+            }
+            outfile << index_str << std::endl;
+            
+            outfile.close();
+
+            for (auto& b : blocks) {
+                write_block_to_file(b);
+            }
+
         }
 
         uint32_t get_blockchain_length() {return blocks.size();};
