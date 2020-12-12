@@ -39,9 +39,6 @@ namespace RaftClient {
         // client back reference.
         Client* client = NULL;
         
-        // estimated current leader
-        int leader_id = 0; 
-
         server_t servers[SERVER_COUNT] = {
             {.connected = false, .id = 0, .port = SERVER_BASE_PORT + 0, .sock = 0, NULL},
             {.connected = false, .id = 1, .port = SERVER_BASE_PORT + 1, .sock = 0, NULL},
@@ -52,6 +49,10 @@ namespace RaftClient {
         std::thread conn_thread;
         std::thread conn_recycle_thread;
         
+        void send_message(request_msg_t &);
+        
+        Client* get_client();
+
         // thread function kept trying to connect to three servers.
         void conn_handler();
 
@@ -63,11 +64,12 @@ namespace RaftClient {
 
     public:
         Network(Client* client);
+        ~Network();
         
         // send transaction to the estimated leader.
-        void send_transaction();
+        void send_transaction(uint32_t recv_id, uint32_t amount, uint64_t req_id);
 
         // send balance to the estimated leader.
-        void send_balance();
+        void send_balance(uint64_t req_id);
     };
 }
