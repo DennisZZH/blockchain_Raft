@@ -15,7 +15,7 @@ BUILD_DIR = build
 
 OBJECTS = $(addprefix $(BUILD_DIR)/, $(notdir $(SOURCES:.cpp=.o)))
 
-client: $(OBJECTS)
+client: $(BUILD_DIR)/client.o
 	$(CC) $(CFLAGS) $(PROTOBUF_LIB) $(OPENSSL_FLAGS) $^ -o $@ -g
 
 blockchain_test: blockchain_test.cpp

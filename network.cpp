@@ -5,8 +5,6 @@
 #include <unistd.h>
 #include "network.h"
 
-
-
 Network::Network(int id) {
     server_id = id;
     if (id >= MAX_CLIENT_NUM) {
@@ -213,7 +211,8 @@ void Network::wait_clients() {
  */
 void Network::receive_clients_message(client_info_t* client_info) {
     while (!stop_flag) {
-        
+        // TODO: Receive clients requests.
+        // TODO: Add the request to the request queue.
     }
     // The client connection is lost. Need to free the dynamically allocated client information.
     clients_recycling.push_back(client_info);
