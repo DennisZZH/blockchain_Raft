@@ -1,9 +1,16 @@
 syntax = "proto2";
 
 // Messages for Client & Server communication
-message request_mgs_t {
+message request_msg_t {
     required uint32 type = 1;
     optional txn_msg_t transaction = 2;
+}
+
+message response_msg_t {
+    required uint32 type = 1;
+    required uint32 succeed = 2;
+    optional uint32 balance = 3;
+    optional uint32 leader_id = 4;
 }
 
 // Messages for Blockchain
