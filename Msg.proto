@@ -3,14 +3,16 @@ syntax = "proto2";
 // Messages for Client & Server communication
 message request_msg_t {
     required uint32 type = 1;
-    optional txn_msg_t transaction = 2;
+    required uint64 request_id = 2;
+    optional txn_msg_t transaction = 3;
 }
 
 message response_msg_t {
     required uint32 type = 1;
-    required uint32 succeed = 2;
-    optional uint32 balance = 3;
-    optional uint32 leader_id = 4;
+    required uint64 request_id = 2;
+    required uint32 succeed = 3;
+    optional uint32 balance = 4;
+    optional uint32 leader_id = 5;
 }
 
 // Messages for Blockchain
