@@ -2,6 +2,8 @@
 #include <stdint.h>
 
 typedef enum {
+    TRANSACTION_REQUEST,
+    BALANCE_REQUEST,
     TRANSACTION_RESPONSE,
     BALANCE_RESPONSE,
     LEADER_CHANGE
@@ -13,4 +15,4 @@ struct response_t {
     bool succeed;
     uint32_t balance;
     uint32_t leader_id;
-}
+};

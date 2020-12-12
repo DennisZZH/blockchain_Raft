@@ -6,12 +6,25 @@
 #include <stdint.h>
 #include "client.h"
 #include "message.h"
+#include "Msg.pb.h"
 using namespace RaftClient;
 
 #define DEBUG_MODE
 
 Network::Network(Client *client) {
     this->client = client;
+    conn_thread = std::thread(&Network::conn_handler, this);
+}
+
+Network::~Network() {
+    for (int i = 0; i < SERVER_COUNT; i++) {
+        servers[i].connected = false;
+        try {
+            servers[i].recv_task->join();
+        } catch(...) {}
+        delete servers[i].recv_task;
+        close(servers[i].port);
+    }
 }
 
 /**
@@ -75,7 +88,7 @@ void Network::recv_handler(int index) {
     const int server_id = servers[index].id;
     const int server_sock = servers[index].sock;
     
-    while (true) {
+    while (servers[server_id].connected) {
         if (!servers[index].connected)
             break;
         
@@ -92,7 +105,7 @@ void Network::recv_handler(int index) {
         }
         // parse the retrive size and allocate message buffer
         msg_bytes = ntohl(msg_bytes);
-        char *msg = new char[msg_bytes];
+        uint8_t *msg = new uint8_t[msg_bytes];
 
         // read the body message
         count = read(server_sock, msg, msg_bytes);
@@ -104,17 +117,55 @@ void Network::recv_handler(int index) {
             continue;
         }
 
-        // TODO: parse the message from the server
-        // TODO: add to the local queue
-
+        response_msg_t response_msg;
+        response_msg.ParseFromArray(msg, msg_bytes);
         delete [] msg;
+
+        // TODO: add the message to the queue.
+        std::cout << "[Network::recv_handler] message received and saved!" << std::endl;
     }
 
     std::cout << "[Network::recv_handler] connection with server: " << server_id << " is lost." << std::endl;
     close(server_sock);
     servers[index].connected = false;
+}
 
-    std::cout << "[Network::recv_hanlder] message received and saved!" << std::endl;
+/**
+ * @brief send message to estimated leader
+ * 
+ * @param request_msg 
+ */
+void Network::send_message(request_msg_t &request_msg) {
+    const char* msg_string = request_msg.SerializeAsString().c_str();
+    COMM_HEADER_TYPE header = htonl(request_msg.ByteSizeLong());
+    
+    uint32_t leader_id = get_client()->get_leader_id();
+    if (!servers[leader_id].connected) {
+        std::cout << "[Network::send_message] leader is not connected." << std::endl;
+        return;
+    }
+
+    write(servers[leader_id].sock, &header, sizeof(header));
+    write(servers[leader_id].sock, msg_string, request_msg.ByteSizeLong());
+}
+
+void Network::send_transaction(uint32_t recv_id, uint32_t amount, uint64_t req_id) {
+    request_msg_t request_msg;
+    txn_msg_t* transaction = new txn_msg_t();
+    transaction->set_recver_id(recv_id);
+    transaction->set_amount(amount);
+    transaction->set_sender_id(get_client()->get_client_id());
+    request_msg.set_allocated_transaction(transaction);
+    request_msg.set_request_id(req_id);
+    request_msg.set_type(TRANSACTION_REQUEST);
+    send_message(request_msg);
+}
+
+void Network::send_balance(uint64_t req_id) {
+    request_msg_t request_msg;
+    request_msg.set_request_id(req_id);
+    request_msg.set_type(BALANCE_REQUEST);
+    send_message(request_msg);
 }
 
 int main (int argc, char* argv[]) {
