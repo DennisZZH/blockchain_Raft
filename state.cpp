@@ -28,7 +28,7 @@ void CandidateState::run() {
     send_msg.type = REQ_VOTE_RPC;
     send_msg.payload = rpc;
     // Send the message to other servers
-    network->send_message(send_msg);
+    network->replica_send_message(send_msg);
     delete rpc;
 
     msg_t recv_msg;
@@ -44,12 +44,12 @@ void CandidateState::run() {
         }
         
         // if the message buffer is empty then do nothing, waiting for another round to check.
-        if (network->get_message_count() == 0) {
+        if (network->replica_get_message_count() == 0) {
             std::this_thread::sleep_for(std::chrono::milliseconds(MSG_CHECK_SLEEP_MS));
             continue;
         }
 
-        network->pop_message(recv_msg);
+        network->replica_pop_message(recv_msg);
         if (recv_msg.type == REQ_VOTE_RPC) {
             auto vote_rpc = (request_vote_rpc_t*)recv_msg.payload;
             // If the term is lower then the current term, then ignore.
@@ -68,7 +68,7 @@ void CandidateState::run() {
             // Wrap the reply with the msg_t for sending.
             send_msg.type = REQ_VOTE_RPL;
             send_msg.payload = &vote_rpl;
-            network->send_message(send_msg, vote_rpc->candidate_id);
+            network->replica_send_message(send_msg, vote_rpc->candidate_id);
 
         } else if (recv_msg.type == REQ_VOTE_RPL) {
             auto vote_reply = (request_vote_reply_t*)recv_msg.payload;
@@ -126,14 +126,14 @@ void FollowerState::run() {
             goto exit;
         }
 
-        if (network->get_message_count() == 0) {
+        if (network->replica_get_message_count() == 0) {
             std::this_thread::sleep_for(std::chrono::milliseconds(MSG_CHECK_SLEEP_MS));
             continue;
         }
 
         // Receiving valid PRC
         msg_t msg;
-        network->pop_message(msg);
+        network->replica_pop_message(msg);
         if (msg.type == APP_ENTR_RPC) {
             auto append_rpc = (append_entry_rpc_t*) msg.payload;
             if (append_rpc->term < get_context()->get_curr_term()) {
@@ -179,7 +179,7 @@ void LeaderState::send_heartbeat() {
     msg.payload = heartbeat;
 
     // Transmit the heartbeat.
-    get_context()->get_network()->send_message(msg);
+    get_context()->get_network()->replica_send_message(msg);
     delete heartbeat;
 
     last_heartbeat_time = std::chrono::system_clock::now();

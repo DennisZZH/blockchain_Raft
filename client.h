@@ -1,12 +1,7 @@
 #pragma once
 #include <thread>
 #include <stdint.h>
-
-#define SERVER_IP           "127.0.0.1"
-#define SERVER_BASE_PORT    8020
-#define SERVER_COUNT        3
-
-#define COMM_HEADER_TYPE    uint32_t
+#include "parameter.h"
 
 namespace RaftClient {
     class Network;
@@ -26,7 +21,8 @@ namespace RaftClient {
         int leader_id = 0;
         Network* network;
     public:
-        Client(int id) {client_id = id;}
+        Client(int id);
+        ~Client();
         void set_leader_id(int id) {client_id = id;}
         
         int get_client_id() {return client_id;}
@@ -40,9 +36,9 @@ namespace RaftClient {
         Client* client = NULL;
         
         server_t servers[SERVER_COUNT] = {
-            {.connected = false, .id = 0, .port = SERVER_BASE_PORT + 0, .sock = 0, NULL},
-            {.connected = false, .id = 1, .port = SERVER_BASE_PORT + 1, .sock = 0, NULL},
-            {.connected = false, .id = 2, .port = SERVER_BASE_PORT + 2, .sock = 0, NULL}
+            {.connected = false, .id = 0, .port = REPLICA_SERVER_BASE_PORT + 0, .sock = 0, NULL},
+            {.connected = false, .id = 1, .port = REPLICA_SERVER_BASE_PORT + 1, .sock = 0, NULL},
+            {.connected = false, .id = 2, .port = REPLICA_SERVER_BASE_PORT + 2, .sock = 0, NULL}
         };
 
         // threads declarations
