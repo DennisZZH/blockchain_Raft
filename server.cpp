@@ -20,6 +20,9 @@ Server::Server(int id) {
     // Start with FollowerState
     curr_state = NULL;
     set_state(new FollowerState(this));
+
+    // Start the state machine
+    run_state_machine();
 }
 
 Server::~Server() {
@@ -57,5 +60,11 @@ void Server::run_state() {
     }
 
     curr_state->run();
+}
+
+void Server::run_state_machine() {
+    while (true) {
+        run_state();
+    }
 }
 
