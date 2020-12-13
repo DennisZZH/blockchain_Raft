@@ -28,5 +28,5 @@ struct response_t {
 struct request_t {
     message_type_t type;
     uint64_t request_id;
-    void* additional;
+    void* payload;
 };

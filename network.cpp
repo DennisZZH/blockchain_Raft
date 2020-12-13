@@ -401,7 +401,7 @@ void Network::client_recv_handler(int client_id) {
             uint32_t sid = request_msg.transaction().sender_id();
             uint32_t rid = request_msg.transaction().recver_id();
             float amount = request_msg.transaction().amount();
-            request->additional = new Transaction(sid, rid, amount);
+            request->payload = new Transaction(sid, rid, amount);
         }
 
         client_push_request(request);
