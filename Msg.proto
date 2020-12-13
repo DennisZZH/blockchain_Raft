@@ -39,10 +39,11 @@ message bc_msg_t {
 // Message for Raft
 message replica_msg_t {
     required uint32 type = 1;
-    optional request_vote_rpc_msg_t request_vote_rpc_msg = 2;
-    optional request_vote_reply_msg_t request_vote_reply_msg = 3;
-    optional append_entry_rpc_msg_t append_entry_rpc_msg = 4;
-    optional append_entry_reply_msg_t append_entry_reply_msg = 5;
+    required uint32 receiver_id = 2;
+    optional request_vote_rpc_msg_t request_vote_rpc_msg = 3;
+    optional request_vote_reply_msg_t request_vote_reply_msg = 4;
+    optional append_entry_rpc_msg_t append_entry_rpc_msg = 5;
+    optional append_entry_reply_msg_t append_entry_reply_msg = 6;
 }
 
 message request_vote_rpc_msg_t {

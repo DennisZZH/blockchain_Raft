@@ -3,10 +3,35 @@
 #include <unistd.h>
 #include "parameter.h"
 #include "mesh.h"
+#include "raft.h"
 using namespace RaftMesh;
 
-void Mesh::Mesh() {
+Mesh::Mesh() {
     setup_mesh_server();
+}
+
+Mesh::~Mesh() {
+    for (int i = 0; i < SERVER_COUNT; i++) {
+        if (servers[i].connected) {
+            servers[i].connected = false;
+        }
+        if (servers[i].recv_task) {
+            try {
+                servers[i].recv_task->join();
+            } catch (...) {};
+            delete servers[i].recv_task;
+            servers[i].recv_task = NULL;
+        }
+        if (servers[i].send_task) {
+            try {
+                servers[i].recv_task->join();
+            } catch (...) {};
+            delete servers[i].send_task;
+            servers[i].send_task = NULL;
+        }
+        close(servers[i].sock);
+        flush_server_trans_queue(i);
+    }
 }
 
 void Mesh::setup_mesh_server() {
@@ -33,6 +58,30 @@ void Mesh::setup_mesh_server() {
     }
 
     wait_conn_thread = std::thread(&Mesh::wait_conn_handler, this);
+}
+
+void Mesh::append_server_trans_queue(int replica_id, trans_queue_item_t* trans_item) {    
+    servers[replica_id].trans_queue_lock.lock();
+    servers[replica_id].trans_queue.push_back(trans_item);
+    servers[replica_id].trans_queue_lock.unlock();
+}
+
+trans_queue_item_t* Mesh::pop_server_trans_queue(int replica_id) {
+    if (servers[replica_id].trans_queue.size() == 0)
+        return NULL;
+    trans_queue_item_t* trans_item = servers[replica_id].trans_queue.at(0);
+    servers[replica_id].trans_queue.pop_front();
+    return trans_item;
+}
+
+void Mesh::flush_server_trans_queue(int replica_id) {
+    int count = servers[replica_id].trans_queue.size();
+    trans_queue_item_t *trans_item = NULL;
+    for (int i = 0; i < count; i++) {
+        trans_item = pop_server_trans_queue(replica_id);
+        delete trans_item->msg;
+        delete trans_item;
+    }
 }
 
 void Mesh::wait_conn_handler() {
@@ -77,12 +126,12 @@ void Mesh::wait_conn_handler() {
         }
 
         // update the server information
+        flush_server_trans_queue(replica_id);
         servers[replica_id].connected = true;
         servers[replica_id].partitioned = false;
         servers[replica_id].sock = replica_sock;
         servers[replica_id].recv_task = new std::thread(&Mesh::recv_handler, this, replica_id);
         servers[replica_id].send_task = new std::thread(&Mesh::send_handler, this, replica_id);
-        servers[replica_id].trans_queue.clear(); // REVIEW: Need to double check this one.
     }
 }
 
@@ -111,14 +160,19 @@ void Mesh::recv_handler(int replica_id) {
             continue; 
         }
 
-        raft_msg_t raft_msg;
-        raft_msg.ParseFromArray(msg, msg_bytes);
+        replica_msg_t *replica_msg = new replica_msg_t();
+        replica_msg->ParseFromArray(msg, msg_bytes);
         delete [] msg;
 
-        // TODO: decode the message to find the receiver id
-
-        delete [] msg;
-        
+        uint32_t receiver_id = replica_msg->receiver_id();
+        if (servers[receiver_id].connected && !servers[receiver_id].partitioned) {
+            trans_queue_item_t *trans_item = new trans_queue_item_t();
+            trans_item->enqueue_time = clock_t::now();
+            trans_item->msg = replica_msg;
+            append_server_trans_queue(receiver_id, trans_item);      
+        } else {
+            delete replica_msg;
+        }
     }
     servers[replica_id].connected = false;
 }
@@ -126,7 +180,38 @@ void Mesh::recv_handler(int replica_id) {
 void Mesh::send_handler(int replica_id) {
     int replica_sock = servers[replica_id].sock;
     while (!is_stopped && servers[replica_id].connected) {
+         trans_queue_item_t *trans_item = pop_server_trans_queue(replica_id);
+        if (trans_item == NULL) {
+            std::this_thread::sleep_for(milliseconds_t(100));
+            continue;
+        }
+        
+        // simulate the network delay
+        auto diff_ms = std::chrono::duration_cast<milliseconds_t>(clock_t::now() - trans_item->enqueue_time);
+        if (diff_ms.count() < MESH_NETWORK_DELAY_MS) {
+            std::this_thread::sleep_for(milliseconds_t(MESH_NETWORK_DELAY_MS - diff_ms.count()));
+        }
+        
+        // fetch the replica message from the trans_item and then trans_item is useless
+        replica_msg_t *msg = trans_item->msg;
+        delete trans_item;
+        
+        // the the replica is partitioned, then the message shouldn't reach
+        if (servers[replica_id].partitioned) {
+            delete msg;
+            continue;
+        }
 
+        // transfer the replica message
+        // 1. transfer the header first
+        COMM_HEADER_TYPE trans_bytes = htons(msg->ByteSizeLong());
+        write(servers[replica_id].sock, &trans_bytes, sizeof(trans_bytes));
+
+        // 2. transfer the body next
+        char* trans_str = msg->SerializeAsString().c_str();
+        write(servers[replica_id].sock, trans_str, msg->ByteSizeLong());
+        trans_str = NULL;
+        delete msg;
     }
     servers[replica_id].connected = false;
 }
