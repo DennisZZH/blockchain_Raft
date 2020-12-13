@@ -56,7 +56,7 @@ class Block {
         uint32_t get_term() {return term;}
         std::string get_phash() {return phash;}
         std::string get_nonce() {return nonce;}
-        Transaction get_txn() {return txn;}
+        Transaction& get_txn() {return txn;}
         uint32_t get_index() {return index;}
     
         std::string sha256(const std::string str){
@@ -221,7 +221,7 @@ class Blockchain {
 
         void clean_up_blocks(int index, std::vector<Block> ref) {
             // Leader clean up follower's logs up to index
-            // Replace it with ref
+            // Replace it with ref (In the case that no cleaning required, just append the new entries)
             for (int i = blocks.size() - 1; i >= index; i--) {
                 blocks.pop_back();
             }
@@ -249,9 +249,10 @@ class Blockchain {
 
         }
 
+        Block& get_block_by_index(uint32_t index) {return blocks[index];};
         uint32_t get_blockchain_length() {return blocks.size();};
         uint32_t get_committed_index() {return committed_index;};
-        Block* get_last_block() {return &blocks.back();};
+        Block& get_last_block() {return blocks.back();};
        
         void print_block_chain(){
             std::cout<<"Print Block Chain: "<<std::endl;

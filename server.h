@@ -14,8 +14,9 @@ private:
     Network* network;
 
     // raft persistent state info
+    uint32_t curr_leader;           // Current leader id
     term_t curr_term;               // Current term on this server
-    int voted_candidate;            // The candidate this server has voted in the current term
+    int voted_candidate;            // The candidate this server has voted in the current term   
     Blockchain bc_log;              // The log of this server
     BalanceTable bal_tab;           // The state machine of this server
 
@@ -36,11 +37,16 @@ public:
     void run_state_machine();
 
     // raft related
-    term_t increment_term() {return ++curr_term;};
-    void set_curr_term(term_t newterm) {curr_term = newterm;};
+    uint32_t get_curr_leader() {return curr_leader;};
     term_t get_curr_term() {return curr_term;};
-    void clear_voted_candidate() {voted_candidate = NULL_CANDIDATE_ID;};                        
-    void set_voted_candidate(int candidate_id) {voted_candidate = candidate_id;};
     int get_voted_candidate() {return voted_candidate;};
     Blockchain& get_bc_log() {return bc_log;}; 
+
+    void set_curr_leader(uint32_t id) {curr_leader = id;};
+    term_t increment_term() {return ++curr_term;};
+    void set_curr_term(term_t newterm) {curr_term = newterm;};
+    void clear_voted_candidate() {voted_candidate = NULL_CANDIDATE_ID;};                        
+    void set_voted_candidate(int candidate_id) {voted_candidate = candidate_id;};
+    void update_bal_tab(uint32_t new_index);
+    
 };

@@ -67,3 +67,12 @@ void Server::run_state_machine() {
         run_state();
     }
 }
+
+void Server::update_bal_tab(uint32_t new_index) {
+    int old_index = bc_log.get_committed_index();
+    for (int bid = old_index + 1; bid <= new_index; bid++) {
+        Transaction tmp = bc_log.get_block_by_index(bid).get_txn();
+        bal_tab.update_balance(tmp.get_sender_id(), tmp.get_recver_id(), tmp.get_amount());
+    }
+    bc_log.set_committed_index(new_index);
+}

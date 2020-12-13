@@ -54,12 +54,13 @@ class BalanceTable {
             write_bal_tab_to_file();
         }
 
-        void update_balance(uint32_t id, float bal_change) {
-            if (id >= CLIENT_COUNT || id < 0) {
+        void update_balance(uint32_t sid, uint32_t rid, float bal_change) {
+            if (sid >= CLIENT_COUNT || sid < 0 || rid >= CLIENT_COUNT || sid < 0) {
                 std::cerr << "Error: balance_table.h: << get_balance() : Invalid id!" << std::endl;
                 exit(0);
             }
-            bal_tab[id] += bal_change;
+            bal_tab[sid] -= bal_change;
+            bal_tab[rid] += bal_change;
             write_bal_tab_to_file();
         }
 

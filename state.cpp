@@ -19,19 +19,19 @@ void CandidateState::run() {
     auto election_timestamp = std::chrono::system_clock::now();
 
     // Make the request vote rpc
-    request_vote_rpc_t* rpc = new request_vote_rpc_t();
-    // rpc->last_log_index = 
-    // rpc->last_log_term = 
-    rpc->term = term;
+    request_vote_rpc_t rpc;
+    rpc.last_log_index = get_context()->get_bc_log().get_last_block().get_index(); 
+    rpc.last_log_term = get_context()->get_bc_log().get_last_block().get_term();
+    rpc.term = term;
     
     replica_msg_wrapper_t send_msg;
     send_msg.type = REQ_VOTE_RPC;
-    send_msg.payload = rpc;
+    send_msg.payload = (void*) &rpc;
     // Send the message to other servers
     network->replica_send_message(send_msg);
-    delete rpc;
+     
+    replica_msg_wrapper_t msg;
 
-    replica_msg_wrapper_t recv_msg;
     while(true) {
         // Get the time difference first for checking the timeout.
         auto curr_timestamp = std::chrono::system_clock::now();
@@ -40,6 +40,7 @@ void CandidateState::run() {
 
         // if the election is not finished within the timeout, need to end the current election.
         if (ms.count() > curr_election_timeout) {
+            get_context()->set_state(new CandidateState(get_context()));
             goto exit;
         }
         
@@ -49,29 +50,19 @@ void CandidateState::run() {
             continue;
         }
 
-        network->replica_pop_message(recv_msg);
-        if (recv_msg.type == REQ_VOTE_RPC) {
-            auto vote_rpc = (request_vote_rpc_t*)recv_msg.payload;
-            // If the term is lower then the current term, then ignore.
-            if (vote_rpc->term < get_context()->get_curr_term()) {
-                continue;
-            }
-            // If the term is higher than mine,  then I should step down.
+        // Receiving valid RPC
+        network->replica_pop_message(msg);
+
+        if (msg.type == REQ_VOTE_RPC) {
+            auto vote_rpc = (request_vote_rpc_t*)msg.payload;
+            // If the term is lower or equal to the current term, then ignore.
+            // If the term is higher than mine, then I should step down
             if (vote_rpc->term > get_context()->get_curr_term()) {
                 get_context()->set_state(new FollowerState(get_context()));
                 goto exit;
             }
-            // Reject the vote request because I already voted for myself.
-            request_vote_reply_t vote_rpl = {0};
-            vote_rpl.term = get_context()->get_curr_term();
-            vote_rpl.vote_granted = false;
-            // Wrap the reply with the replica_msg_wrapper_t for sending.
-            send_msg.type = REQ_VOTE_RPL;
-            send_msg.payload = &vote_rpl;
-            network->replica_send_message(send_msg, vote_rpc->candidate_id);
-
-        } else if (recv_msg.type == REQ_VOTE_RPL) {
-            auto vote_reply = (request_vote_reply_t*)recv_msg.payload;
+        } else if (msg.type == REQ_VOTE_RPL) {
+            auto vote_reply = (request_vote_reply_t*)msg.payload;
             // If the reply term is higher then the current term, it means I am slow so I need to step down.
             // REVIEW: Step down to be what, follower?
             if (vote_reply->term > get_context()->get_curr_term()) {
@@ -85,24 +76,25 @@ void CandidateState::run() {
                     goto exit;
                 }
             }
-        } else if (recv_msg.type == APP_ENTR_RPC) {
-            auto append_rpc = (append_entry_rpc_t*)recv_msg.payload;
-            // REVIEW: The new elected leader should have the same or larger term.
+        } else if (msg.type == APP_ENTR_RPC) {
+            auto append_rpc = (append_entry_rpc_t*)msg.payload;
+            // REVIEW: The new elected leader should have the same or larger term. Ignore if smaller
             // The new leader should send a empty heartbeat, so shouldn't need to append.
             if (append_rpc->term >= get_context()->get_curr_term()) {
                 get_context()->set_state(new FollowerState(get_context()));
                 goto exit;
             }
-        } else {
-            // For other cases, we can ignore. But need to free the dynamic memory taken by the recv_msg.
-            free(recv_msg.payload);
-            recv_msg.payload = NULL;
+        }
+
+        // Free payload after done using message
+        if (msg.payload != NULL) {
+            free(msg.payload);
         }
     }
 
 exit:
-    if (recv_msg.payload != NULL) {
-        free(recv_msg.payload);
+    if (msg.payload != NULL) {
+        free(msg.payload);
     }
     return; 
 }
@@ -131,50 +123,85 @@ void FollowerState::run() {
             continue;
         }
 
-        // Receiving valid PRC
+        // Receiving valid RPC
         replica_msg_wrapper_t msg;
         network->replica_pop_message(msg);
+
+        // Handle received RPC
         if (msg.type == APP_ENTR_RPC) {
             auto append_rpc = (append_entry_rpc_t*) msg.payload;
-            if (append_rpc->term < get_context()->get_curr_term()) {
-                continue;
-            }
-            // Update the timestamp if the term is the lastest term.
-            // Reset timeout
-            last_time = std::chrono::system_clock::now();
+            append_entry_reply_t reply;
             
-            // REVIEW: Check if the append RPC is just a heartbeat.
-            // REVIEW: Don't need to reply?
-            if (append_rpc->entries.size() == 0) {
-                continue;
+            // Return failure if term is outdated (leader invalid)
+            if (append_rpc->term < get_context()->get_curr_term()) { 
+                reply.term = get_context()->get_curr_term();
+                reply.success = false;
             }
-
-            // TODO: Implement the raft sync algorithm.
-            
-
+            else {
+                // Update the timestamp if the term is the lastest term.
+                if (append_rpc->term > get_context()->get_curr_term()) {
+                    get_context()->set_curr_term(append_rpc->term);
+                    get_context()->clear_voted_candidate();
+                }
+                // Reset timeout
+                last_time = std::chrono::system_clock::now();
+                // If the append RPC is just a heartbeat.
+                if (append_rpc->entries.size() == 0) {
+                    // Comfirm leader
+                    get_context()->set_curr_leader(append_rpc->leader_id);
+                    // Advance balance table with newly committed entries (Also update committed index of the blockchain)
+                    get_context()->update_bal_tab(append_rpc->commit_index);
+                    reply.term = reply.term = get_context()->get_curr_term();
+                    reply.success = true;
+                }
+                // If the append RPC contains log entries
+                else {
+                    // Return failure if log doesn't contain an entry at prevLogIndex whose term matches prevLogTerm
+                    if (get_context()->get_bc_log().get_last_block().get_index() != append_rpc->prev_log_index
+                        || get_context()->get_bc_log().get_last_block().get_term() != append_rpc->prev_log_term) {
+                            reply.term = reply.term = get_context()->get_curr_term();
+                            reply.success = false;
+                    }
+                    else {
+                        // If existing entries conflict with new entries, delete all existing entries starting with first conflicting entry
+                        // Append any new entries not already in the log
+                        get_context()->get_bc_log().clean_up_blocks(append_rpc->prev_log_index + 1, append_rpc->entries);
+                        get_context()->get_bc_log().set_committed_index(append_rpc->commit_index);
+                        reply.term = reply.term = get_context()->get_curr_term();
+                        reply.success = true;
+                    }
+                }
+            }
+            // Reply is ready; Prepare a message
+            replica_msg_wrapper_t reply_msg;
+            reply_msg.type = replica_msg_type_t::APP_ENTR_RPL;
+            reply_msg.payload = (void*) &reply;
+            network->replica_send_message(reply_msg, append_rpc->leader_id);          
         } 
         else if (msg.type == REQ_VOTE_RPC) {
             auto vote_rpc = (request_vote_rpc_t*) msg.payload;
             request_vote_reply_t reply;
             reply.vote_granted = false;
             
+            // Discover larger term
             if (vote_rpc->term > get_context()->get_curr_term()) {
-                get_context()->set_curr_term(vote_rpc->term);  
+                get_context()->set_curr_term(vote_rpc->term);
+                get_context()->clear_voted_candidate();  
             }
             reply.term = get_context()->get_curr_term();
 
             if (vote_rpc->term == get_context()->get_curr_term()) {
                 if (get_context()->get_voted_candidate() == NULL_CANDIDATE_ID || get_context()->get_voted_candidate() == vote_rpc->candidate_id) {
-                    if (get_context()->get_bc_log().get_last_block()->get_term() < vote_rpc->last_log_term
-                        || (get_context()->get_bc_log().get_last_block()->get_term() == vote_rpc->last_log_term 
-                            && get_context()->get_bc_log().get_last_block()->get_index() <= vote_rpc->last_log_index)) {
+                    if (get_context()->get_bc_log().get_last_block().get_term() < vote_rpc->last_log_term
+                        || (get_context()->get_bc_log().get_last_block().get_term() == vote_rpc->last_log_term 
+                            && get_context()->get_bc_log().get_last_block().get_index() <= vote_rpc->last_log_index)) {
                             // Grant vote and reset election timeout
                             reply.vote_granted = true;
+                            get_context()->set_voted_candidate(vote_rpc->candidate_id);
                             last_time = std::chrono::system_clock::now();
                         }
                 }
             }
-
             // Reply is ready; Prepare a message
             replica_msg_wrapper_t reply_msg;
             reply_msg.type = replica_msg_type_t::REQ_VOTE_RPL;
@@ -183,7 +210,10 @@ void FollowerState::run() {
         }
         else {
             // REVIEW: A follower simply ignore all other messages
-            continue;
+        }
+        // Free payload after done using a msg
+        if (msg.payload != NULL) {
+            free(msg.payload);
         }  
     }
 exit:
