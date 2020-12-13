@@ -58,4 +58,3 @@ void Server::run_state() {
 
     curr_state->run();
 }
-

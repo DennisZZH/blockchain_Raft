@@ -2,6 +2,7 @@
 #include <thread>
 #include <stdint.h>
 #include "parameter.h"
+#include "message.h"
 
 namespace RaftClient {
     class Network;

@@ -23,67 +23,7 @@ Network::Network(int id) {
     setup_client_server();
 }
 
-/**
- * @brief Initialize the server and connections between replicas.
- * 
- */
-void Network::setup_replica_server() {
-    replica_server_fd = socket(AF_INET, SOCK_STREAM, 0);
-    int flag;
-    if (setsockopt(replica_server_fd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)) < 0) {
-        std::cerr << "[setup_replica_server] Failed to set the socket options." << std::endl;
-        exit(1);
-    }
-    sockaddr_in server_addr = {0};
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = inet_addr(REPLICA_SERVER_IP);
-    server_addr.sin_port = htons(REPLICA_SERVER_BASE_PORT + server_id);
 
-    if (bind(replica_server_fd, (sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
-        std::cerr << "[setup_replica_server] Failed to bind the socket." << std::endl;
-        exit(1);
-    }
-
-    if (listen(replica_server_fd, REPLICA_NODE_COUNT * 2) < 0) {
-        std::cerr << "[setup_replica_server] Failed to listen the port." << std::endl;
-        exit(1);
-    }
-
-    replica_wait_thread = std::thread(&Network::wait_connection, this);
-    replica_conn_thread = std::thread(&Network::setup_connections, this);
-}
-
-/**
- * @brief Initialize the server so that the site can accept user's connection for requests.
- * 
- */
-void Network::setup_client_server() {
-    client_server_fd = socket(AF_INET, SOCK_STREAM, 0);
-    int flag;
-    if (setsockopt(client_server_fd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)) < 0) {
-        std::cerr << "[setup_client_server] Failed to set the socket options." << std::endl;
-        exit(1);
-    }
-
-    sockaddr_in addr = {0};
-    addr.sin_family = AF_INET;
-    addr.sin_addr.s_addr = inet_addr(SERVER_IP);
-    addr.sin_port = htons(SERVER_BASE_PORT + server_id);
-    
-    if (bind(client_server_fd, (sockaddr*)&addr, sizeof(addr)) < 0) {
-        std::cerr << "[setup_replica_server] Failed to bind the socket." << std::endl;
-        exit(1);
-    }
-
-    // double the client_count to leave some margin
-    if (listen(client_server_fd, CLIENT_COUNT * 2) < 0) {
-        std::cerr << "[setup_replica_server] Failed to listen the port." << std::endl;
-        exit(1);
-    }
-    
-    client_wait_thread = std::thread(&Network::client_wait_handler, this);
-    client_recycle_thread = std::thread(&Network::client_recycle_handler, this);
-}
 
 // Replicas
 void Network::setup_connections() {
@@ -165,6 +105,37 @@ void Network::wait_connection() {
     }
 }
 
+/**
+ * @brief Initialize the server and connections between replicas.
+ * 
+ */
+void Network::setup_replica_server() {
+    replica_server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    int flag;
+    if (setsockopt(replica_server_fd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)) < 0) {
+        std::cerr << "[setup_replica_server] Failed to set the socket options." << std::endl;
+        exit(1);
+    }
+    sockaddr_in server_addr = {0};
+    server_addr.sin_family = AF_INET;
+    server_addr.sin_addr.s_addr = inet_addr(REPLICA_SERVER_IP);
+    server_addr.sin_port = htons(REPLICA_SERVER_BASE_PORT + server_id);
+
+    if (bind(replica_server_fd, (sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+        std::cerr << "[setup_replica_server] Failed to bind the socket." << std::endl;
+        exit(1);
+    }
+
+    if (listen(replica_server_fd, REPLICA_NODE_COUNT * 2) < 0) {
+        std::cerr << "[setup_replica_server] Failed to listen the port." << std::endl;
+        exit(1);
+    }
+
+    replica_wait_thread = std::thread(&Network::wait_connection, this);
+    replica_conn_thread = std::thread(&Network::setup_connections, this);
+}
+ 
+
 void Network::replica_recv_handler(int id) {
     // TODO: Receive messages and decode them into a buffer.
     while (!stop_flag) {
@@ -188,7 +159,55 @@ void Network::replica_recv_handler(int id) {
     replicas_info[id].valid = false;
 }
 
+void Network::replica_send_message(msg_t &msg, int id) {
+    return;
+}
+
+/**
+ * @brief This function should fill the msg using the info of the first msg in the buffer and delete
+ *        the first msg in the buffer.
+ * 
+ * @param msg 
+ */
+void Network::replica_pop_message(msg_t &msg) {
+    // TODO: Pop out a message at the front of the queue.
+    // TODO: Fill in the msg.
+}
+
 // Clients
+/**
+ * @brief Initialize the server so that the site can accept user's connection for requests.
+ * 
+ */
+void Network::setup_client_server() {
+    client_server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    int flag;
+    if (setsockopt(client_server_fd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)) < 0) {
+        std::cerr << "[setup_client_server] Failed to set the socket options." << std::endl;
+        exit(1);
+    }
+
+    sockaddr_in addr = {0};
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = inet_addr(SERVER_IP);
+    addr.sin_port = htons(SERVER_BASE_PORT + server_id);
+    
+    if (bind(client_server_fd, (sockaddr*)&addr, sizeof(addr)) < 0) {
+        std::cerr << "[setup_replica_server] Failed to bind the socket." << std::endl;
+        exit(1);
+    }
+
+    // double the client_count to leave some margin
+    if (listen(client_server_fd, CLIENT_COUNT * 2) < 0) {
+        std::cerr << "[setup_replica_server] Failed to listen the port." << std::endl;
+        exit(1);
+    }
+    
+    client_wait_thread = std::thread(&Network::client_wait_handler, this);
+    client_recycle_thread = std::thread(&Network::client_recycle_handler, this);
+}
+
+
 void Network::client_wait_handler() {
     while (!stop_flag) {
         sockaddr_in client_addr = {0};
@@ -264,6 +283,7 @@ void Network::client_recv_handler(int client_id) {
 
         request_msg_t request_msg;
         request_msg.ParseFromArray(msg, msg_bytes);
+        delete [] msg;
         
         request_t *request = new request_t();
         bzero(request, sizeof(request_t));
@@ -309,20 +329,7 @@ request_t* Network::client_pop_request() {
     return req;
 }
 
-void Network::replica_send_message(msg_t &msg, int id) {
-    return;
-}
 
-/**
- * @brief This function should fill the msg using the info of the first msg in the buffer and delete
- *        the first msg in the buffer.
- * 
- * @param msg 
- */
-void Network::replica_pop_message(msg_t &msg) {
-    // TODO: Pop out a message at the front of the queue.
-    // TODO: Fill in the msg.
-}
 
 size_t Network::replica_get_message_count() {
     return server_message_queue.size();

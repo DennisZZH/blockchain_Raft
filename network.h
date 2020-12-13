@@ -28,19 +28,6 @@ struct client_info_t {
     std::thread *recv_task;
 };
 
-typedef enum {
-    NONE,
-    REQ_VOTE_RPC,               // request vote RPC
-    REQ_VOTE_RPL,               // request vote reply
-    APP_ENTR_RPC,               // append entry RPC
-    APP_ENTR_RPL                // append entry reply
-} msg_type_t;
-
-struct msg_t{
-    msg_type_t type;            // type determines which struct we should cast the message payload to.
-    void* payload;              // cast this one to one of the message struct.
-};
-
 class Network {
 private:
     int server_id;
@@ -51,7 +38,7 @@ private:
     
     
     // replica related
-    std::deque<msg_t> server_message_queue;                             // The message buffer between the server.
+    std::deque<replica_msg_wrapper_t> server_message_queue;                             // The message buffer between the server.
     std::thread replica_wait_thread;                                    // Thread for listening & accepting connections from peers.
     std::thread replica_conn_thread;                                    // Thread for connecting to other peers.
 
@@ -73,13 +60,13 @@ private:
     void client_recv_handler(int client_id);                            // Thread function for receiving clients message.
 
 public:
-    const uint32_t RECYCLE_CHECK_SLEEP_MS = 50;                  // The sleep time until check next time if the queue is empty.
+    const uint32_t RECYCLE_CHECK_SLEEP_MS = 50;                         // The sleep time until check next time if the queue is empty.
     
     Network(int id);
     
     // replica related APIs
-    void replica_send_message(msg_t &msg, int id = -1);                         // Send the message to the served identified by the id. If id == -1, send to all.
-    void replica_pop_message(msg_t &msg);                                       // Pop the message saved in the message queue and fill the info into msg.
+    void replica_send_message(replica_msg_type_t &msg, int id = -1);            // Send the message to the served identified by the id. If id == -1, send to all.
+    void replica_pop_message(replica_msg_wrapper_t &msg);                       // Pop the message saved in the message queue and fill the info into msg.
     size_t replica_get_message_count();                                         // Get the count in the message buffer.
 
     // request related APIs
