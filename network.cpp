@@ -159,7 +159,7 @@ void Network::replica_recv_handler(int id) {
     replicas_info[id].valid = false;
 }
 
-void Network::replica_send_message(msg_t &msg, int id) {
+void Network::replica_send_message(replica_msg_wrapper_t &msg, int id) {
     return;
 }
 
@@ -169,7 +169,7 @@ void Network::replica_send_message(msg_t &msg, int id) {
  * 
  * @param msg 
  */
-void Network::replica_pop_message(msg_t &msg) {
+void Network::replica_pop_message(replica_msg_wrapper_t &msg) {
     // TODO: Pop out a message at the front of the queue.
     // TODO: Fill in the msg.
 }

@@ -195,7 +195,7 @@ void LeaderState::send_heartbeat() {
     append_entry_rpc_t* heartbeat = new append_entry_rpc_t();
     heartbeat->term = get_context()->get_curr_term();
     heartbeat->leader_id = get_context()->get_id();
-    heartbeat->entry_count = 0;                                     // Heartbeat doesn't contain any log.
+    //heartbeat->entry_count = 0;                                     // Heartbeat doesn't contain any log.
     
     // Need to wrap the heartbeat with replica_msg_wrapper_t because it's the msg used by the network.
     replica_msg_wrapper_t msg;
