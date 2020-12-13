@@ -14,6 +14,7 @@ class Transaction {
     public:
         Transaction() {}
         Transaction(uint32_t sid, uint32_t rid, float amt) : sender_id(sid), recver_id(rid), amount(amt) {}
+        Transaction(bool flag) {bal_txn_flag = true;}
 
         void set_sender_id(uint32_t sid) {sender_id = sid;}
         void set_recver_id(uint32_t rid) {recver_id = rid;}
@@ -28,9 +29,10 @@ class Transaction {
         void print_transaction() {std::cout<<"Print Transation : "<<"Client"<<sender_id<<" send $"<<amount<<" To Client"<<recver_id<<std::endl;}
 
     private:
-        uint32_t sender_id;
-        uint32_t recver_id;
-        float amount;  
+        uint32_t sender_id = -1;
+        uint32_t recver_id = -1;
+        float amount = -1;
+        bool bal_txn_flag = false;
 };
 
 class Block {
