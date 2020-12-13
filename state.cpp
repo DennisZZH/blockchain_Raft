@@ -140,27 +140,53 @@ void FollowerState::run() {
                 continue;
             }
             // Update the timestamp if the term is the lastest term.
+            // Reset timeout
             last_time = std::chrono::system_clock::now();
             
             // REVIEW: Check if the append RPC is just a heartbeat.
             // REVIEW: Don't need to reply?
-            if (append_rpc->entry_count == 0) {
+            if (append_rpc->entries.size() == 0) {
                 continue;
             }
 
             // TODO: Implement the raft sync algorithm.
+            
 
-
-        } else if (msg.type == REQ_VOTE_RPC) {
+        } 
+        else if (msg.type == REQ_VOTE_RPC) {
             auto vote_rpc = (request_vote_rpc_t*) msg.payload;
-            // Make sure the candidate has the newer term.
-            if (vote_rpc->term <= get_context()->get_curr_term()) {
-                continue;
+            request_vote_reply_t reply;
+            reply.vote_granted = false;
+            
+            if (vote_rpc->term > get_context()->get_curr_term()) {
+                get_context()->set_curr_term(vote_rpc->term);  
+            }
+            reply.term = get_context()->get_curr_term();
+
+            if (vote_rpc->term == get_context()->get_curr_term()) {
+                if (get_context()->get_voted_candidate() == NULL_CANDIDATE_ID || get_context()->get_voted_candidate() == vote_rpc->candidate_id) {
+                    if (get_context()->get_bc_log().get_last_block()->get_term() < vote_rpc->last_log_term
+                        || (get_context()->get_bc_log().get_last_block()->get_term() == vote_rpc->last_log_term 
+                            && get_context()->get_bc_log().get_last_block()->get_index() <= vote_rpc->last_log_index)) {
+                            // Grant vote and reset election timeout
+                            reply.vote_granted = true;
+                            last_time = std::chrono::system_clock::now();
+                        }
+                }
             }
 
-            // TODO: Need to compare with the latest term I got.
-        } 
-        // REVIEW: Simply ignore other messages
+            // Reply is ready; Prepare a message
+            // TODO
+            msg_t reply_msg;
+            reply_msg.type = msg_type_t::REQ_VOTE_RPL;
+            //reply_msg.payload = (void*)  ?
+            network->send_message(reply_msg, vote_rpc->candidate_id);           
+
+        }
+        else {
+            // REVIEW: A follower simply ignore all other messages
+            continue;
+        }  
     }
 exit:
     return;

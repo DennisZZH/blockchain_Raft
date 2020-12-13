@@ -33,9 +33,11 @@ public:
     // state related
     void run_state();
     void set_state(State* state);
+    void run_state_machine();
 
     // raft related
     term_t increment_term() {return ++curr_term;};
+    void set_curr_term(term_t newterm) {curr_term = newterm;};
     term_t get_curr_term() {return curr_term;};
     void clear_voted_candidate() {voted_candidate = NULL_CANDIDATE_ID;};                        
     void set_voted_candidate(int candidate_id) {voted_candidate = candidate_id;};
