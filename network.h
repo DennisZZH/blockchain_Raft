@@ -9,10 +9,7 @@
 #include "parameter.h"
 #include "message.h"
 
-#define REPLICA_SERVER_IP               "127.0.0.1"
-#define REPLICA_SERVER_BASE_PORT        8000            // port base number when replicas work like server to accept other replicas
-#define REPLICA_CLIENT_BASE_PORT        8010            // port base number when replicas work like client to connect to other replicas
-#define REPLICA_NODE_COUNT              3
+class Server;
 
 struct replica_info_t {
     int socket;
@@ -30,28 +27,32 @@ struct client_info_t {
 
 class Network {
 private:
-    int server_id;
-    int replica_server_fd;                                              // The socket fd used to listen replica connections.
-    int client_server_fd;                                               // The socket fd used to listen client connections.
+    Server *context;
     bool stop_flag = false;
-    replica_info_t replicas_info[REPLICA_NODE_COUNT];
     
+    Network(Server *context);
     
-    // replica related
-    std::deque<replica_msg_wrapper_t> server_message_queue;                             // The message buffer between the server.
-    std::thread replica_wait_thread;                                    // Thread for listening & accepting connections from peers.
+    Server* get_context() {return context;};
+
+    /////////////////////
+    /* replica related */
+    /////////////////////
+    int replica_socket = 0;
+    bool mesh_connected = false;
+    std::deque<replica_msg_wrapper_t*> replica_msg_queue;            // The message buffer between the server.
     std::thread replica_conn_thread;                                    // Thread for connecting to other peers.
+    std::thread replica_recv_thread;
 
     void setup_replica_server();                                        // Setup up replica interconnections.
-    void wait_connection();                                             // Thread function for listening & accepting connections.
-    void setup_connections();                                           // Thread function for connecting to lower id sites.
-    void replica_recv_handler(int id);                                  // Thread function for recving messages from peers. Index is used for freeing the client slot.
+    void replica_conn_handler();                                        // Thread function for connecting to lower id sites.
+    void replica_recv_handler();                                        // Thread function for recving messages from the mesh
     
-    // client related
+    ////////////////////
+    /* client related */
+    ////////////////////
+    int client_server_fd;
     client_info_t clients[CLIENT_COUNT] = {0};                          // saves the client information
-
     std::mutex client_req_mutex;                                        // lock of the client_req_queue.
-
     std::deque<request_t*> client_req_queue;                            // Hold the request from client.
     std::thread client_wait_thread;                                     // Thread for listening & accepting clients.
 

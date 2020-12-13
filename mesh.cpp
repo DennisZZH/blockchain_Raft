@@ -96,7 +96,7 @@ void Mesh::wait_conn_handler() {
         }
 
         // by subtracting the client base port, we can get the client id here
-        int replica_id = ntohs(replica_addr.sin_port) - RAFT_CLIENT_BASE_PORT;
+        int replica_id = ntohs(replica_addr.sin_port) - REPLICA_CLIENT_BASE_PORT;
         
         if (replica_id > 2 || replica_id < 0) {
             std::cerr << "[Mesh::wait_conn_handler] received invalid replica_id: " << replica_id << std::endl;
@@ -148,7 +148,7 @@ void Mesh::recv_handler(int replica_id) {
             continue; 
         }
 
-        msg_bytes = ntohs(msg_bytes);
+        msg_bytes = ntohl(msg_bytes);
         uint8_t* msg = new uint8_t[msg_bytes];
         count = read(replica_sock, msg, msg_bytes);
         if (count <= 0) {
@@ -204,13 +204,13 @@ void Mesh::send_handler(int replica_id) {
 
         // transfer the replica message
         // 1. transfer the header first
-        COMM_HEADER_TYPE trans_bytes = htons(msg->ByteSizeLong());
+        COMM_HEADER_TYPE trans_bytes = htonl(msg->ByteSizeLong());
         write(servers[replica_id].sock, &trans_bytes, sizeof(trans_bytes));
 
         // 2. transfer the body next
-        char* trans_str = msg->SerializeAsString().c_str();
+
+        const char* trans_str = msg->SerializeAsString().c_str();
         write(servers[replica_id].sock, trans_str, msg->ByteSizeLong());
-        trans_str = NULL;
         delete msg;
     }
     servers[replica_id].connected = false;

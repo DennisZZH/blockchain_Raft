@@ -5,103 +5,73 @@
 #include <unistd.h>
 #include "network.h"
 #include "message.h"
+#include "server.h"
 
-Network::Network(int id) {
-    server_id = id;
-    if (id >= REPLICA_NODE_COUNT) {
-        std::cerr << "The id number should be between: 0 to " << REPLICA_NODE_COUNT - 1 << std::endl;
-        exit(1);
-    }
-
-    // Initialize the info of all clients
-    for (int i = 0; i < REPLICA_NODE_COUNT; i++) {
-        replicas_info[i].socket = 0;
-        replicas_info[i].valid = false;
-    }
-
+Network::Network(Server *context) {
+    this->context = context;
+    
     setup_replica_server();
     setup_client_server();
 }
 
 
 
-// Replicas
-void Network::setup_connections() {
+/**
+ * @brief thread function that connects the current the current replica to the mesh
+ * 
+ */
+void Network::replica_conn_handler() {
     while(!stop_flag) {
-        for (int id = 0; id < server_id; id++) {
-            if (replicas_info[id].valid == false) {
-                int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
-                int flag;
-                if (setsockopt(socket_fd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)) < 0) {
-                    std::cerr << "[setup_server] Failed to set the socket options." << std::endl;
-                    exit(1);
-                }
-
-                sockaddr_in self_addr = {0};
-                self_addr.sin_family = AF_INET;
-                self_addr.sin_addr.s_addr = inet_addr(REPLICA_SERVER_IP);
-                // Use the following method to avoid port conflicts. Note the following way only works for 3 sites.
-                self_addr.sin_port = htons(REPLICA_CLIENT_BASE_PORT + server_id + id);       // Stupid way to avoid port conflicts.
-                
-                if (bind(socket_fd, (sockaddr*) &self_addr, sizeof(self_addr)) < 0) {
-                    std::cerr << "[setup_connections] Failed to bind self address." << std::endl;
-                    close(socket_fd);
-
-                    std::this_thread::sleep_for(std::chrono::milliseconds(3000));
-                    continue;
-                }
-                
-                sockaddr_in server_addr = {0};
-                server_addr.sin_family = AF_INET;
-                server_addr.sin_addr.s_addr = inet_addr(REPLICA_SERVER_IP);
-                server_addr.sin_port = htons(REPLICA_SERVER_BASE_PORT + id);
-                
-                if (connect(socket_fd, (sockaddr*) &server_addr, sizeof(sockaddr_in)) < 0) {
-                    std::cerr << "[setup_connections] Failed to connect the peer (server): " << id << std::endl;
-                    close(socket_fd);
-
-                    std::this_thread::sleep_for(std::chrono::milliseconds(3000));
-                    continue;
-                }
-
-                try { 
-                    replicas_info[id].task.join();
-                } catch(...) {};  
-                replicas_info[id].valid = true;
-                replicas_info[id].socket = socket_fd;
-                replicas_info[id].task = std::thread(&Network::replica_recv_handler, this, id);
-                std::cout << "[setup_connections] Connected to " << id << std::endl;
-            }
+        if (mesh_connected) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+            continue;
         }
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
-    }
-}
-
-void Network::wait_connection() {
-    while (!stop_flag) {
-        sockaddr_in peer_addr = {0};
-        socklen_t peer_addr_size = sizeof(peer_addr);
-        int peer_socket = accept(replica_server_fd, (sockaddr*) &peer_addr, &peer_addr_size);
-        if (peer_socket < 0) {
-            std::cout << "[wait_connections] Failed to accept replica." << std::endl;
+        
+        replica_socket = socket(AF_INET, SOCK_STREAM, 0);
+        int flag;
+        if (setsockopt(replica_socket, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)) < 0) {
+            std::cerr << "[Network::replica_conn_handler] failed to set the socket options." << std::endl;
             continue;
         }
 
-        int peer_port_num = ntohs(peer_addr.sin_port);
-        int peer_id = peer_port_num - REPLICA_CLIENT_BASE_PORT - server_id;
-        std::cout << "[wait_connections] Accepted connection from replica: " << peer_id << std::endl;
-        
-        if (replicas_info[peer_id].valid == false) {
-            try { 
-                replicas_info[peer_id].task.join();
-            } catch(...) {};  
-            replicas_info[peer_id].valid = true;
-            replicas_info[peer_id].socket = peer_socket;
-            replicas_info[peer_id].task = std::thread(&Network::replica_recv_handler, this, peer_id);
-        } else {
-            std::cout << "[wait_connections] Couldn't find empty replica info socket." << std::endl;
-            close(peer_socket);
+        // bind to replica specific ip and port
+        // the mesh can identify the replica id based on the port number.
+        sockaddr_in bind_addr;
+        bind_addr.sin_family = AF_INET;
+        bind_addr.sin_addr.s_addr = inet_addr(REPLICA_CLIENT_IP);
+        bind_addr.sin_port = htons(REPLICA_CLIENT_BASE_PORT + get_context()->get_id());
+
+        if (bind(replica_socket, (sockaddr*) &bind_addr, sizeof(bind_addr)) < 0) {
+            std::cerr << "[Network::replica_conn_handler] failed to bind self address." << std::endl;
+            close(replica_socket);
+            replica_socket = 0;
+            std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+            continue;
         }
+
+        // indicate the mesh address and port
+        sockaddr_in mesh_addr;
+        mesh_addr.sin_family = AF_INET;
+        mesh_addr.sin_addr.s_addr = inet_addr(MESH_IP);
+        mesh_addr.sin_port = htons(MESH_PORT);
+        
+        if (connect(replica_socket, (sockaddr*) &mesh_addr, sizeof(mesh_addr)) < 0) {
+            std::cerr << "[Network::replica_conn_handler] failed to connect the mesh." << std::endl;
+            close(replica_socket);
+            std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+            continue;
+        }
+
+        // just in case the previous receive thread is still running
+        // need to join the previous thread
+        try {
+            replica_recv_thread.join();
+        } catch (...) {}
+        
+        // set the mesh status to be connected and start a new thread.
+        mesh_connected = true;
+        replica_recv_thread = std::thread(&Network::replica_recv_handler);
+
     }
 }
 
@@ -110,53 +80,121 @@ void Network::wait_connection() {
  * 
  */
 void Network::setup_replica_server() {
-    replica_server_fd = socket(AF_INET, SOCK_STREAM, 0);
-    int flag;
-    if (setsockopt(replica_server_fd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)) < 0) {
-        std::cerr << "[setup_replica_server] Failed to set the socket options." << std::endl;
-        exit(1);
-    }
-    sockaddr_in server_addr = {0};
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = inet_addr(REPLICA_SERVER_IP);
-    server_addr.sin_port = htons(REPLICA_SERVER_BASE_PORT + server_id);
-
-    if (bind(replica_server_fd, (sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
-        std::cerr << "[setup_replica_server] Failed to bind the socket." << std::endl;
-        exit(1);
-    }
-
-    if (listen(replica_server_fd, REPLICA_NODE_COUNT * 2) < 0) {
-        std::cerr << "[setup_replica_server] Failed to listen the port." << std::endl;
-        exit(1);
-    }
-
-    replica_wait_thread = std::thread(&Network::wait_connection, this);
-    replica_conn_thread = std::thread(&Network::setup_connections, this);
+    // replica_server_fd = socket(AF_INET, SOCK_STREAM, 0);
+    // int flag;
+    // if (setsockopt(replica_server_fd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)) < 0) {
+    //     std::cerr << "[setup_replica_server] Failed to set the socket options." << std::endl;
+    //     exit(1);
+    // }
+    // sockaddr_in server_addr = {0};
+    // server_addr.sin_family = AF_INET;
+    // server_addr.sin_addr.s_addr = inet_addr(REPLICA_SERVER_IP);
+    // server_addr.sin_port = htons(REPLICA_SERVER_BASE_PORT + server_id);
+    //
+    // if (bind(replica_server_fd, (sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+    //     std::cerr << "[setup_replica_server] Failed to bind the socket." << std::endl;
+    //     exit(1);
+    // }
+    //
+    // if (listen(replica_server_fd, REPLICA_NODE_COUNT * 2) < 0) {
+    //     std::cerr << "[setup_replica_server] Failed to listen the port." << std::endl;
+    //     exit(1);
+    // }
+    //
+    // replica_wait_thread = std::thread(&Network::wait_connection, this);
+    // replica_conn_thread = std::thread(&Network::replica_conn_handler, this);
 }
  
 
-void Network::replica_recv_handler(int id) {
-    // TODO: Receive messages and decode them into a buffer.
-    while (!stop_flag) {
-        std::cout << "Connected. Receiving messages." << std::endl;
-        // TODO: Change this. Dummy variable.
-        char buffer[10];
-        
-        int size = read(replicas_info[id].socket, buffer, 10);
-        // std::cout<<"[recv_application] header size read = "<<size<<std::endl;
-        if (size <= 0) {
-            std::cout << "[recv_application] Connection is lost." << std::endl;
+void Network::replica_recv_handler() {
+    std::cout << "[Network::replica_recv_handler] start receiving mesh messages." << std::endl;
+    while (!stop_flag && mesh_connected) {
+        int count = 0;
+        COMM_HEADER_TYPE msg_bytes = 0;
+        count = read(replica_socket, &msg_bytes, sizeof(msg_bytes));
+        if (count <= 0) {
             break;
+        } else if (count < sizeof(msg_bytes)) {
+            std::cerr << "[Network::replica_recv_handler] received broken header." << std::endl;
+            continue;
         }
-    }
 
-    // If this thread stops for any reason.
-    // Need to free the client socket.
-    // close(clients_connected[id].socket);  // May not need this.
-    std::cout << "[recv_application] client: " << id << " is exiting." << std::endl;
-    close(replicas_info[id].socket);
-    replicas_info[id].valid = false;
+        msg_bytes = ntohl(msg_bytes);
+        uint8_t *msg = new uint8_t[msg_bytes];
+        count = read(replica_socket, msg, msg_bytes);
+        if (count <= 0) {
+            delete [] msg;
+            break;
+        } else if (count < msg_bytes) {
+            delete [] msg;
+            std::cerr << "[Network::replica_recv_handler] received broken body." << std::endl;
+            continue;
+        }
+
+        replica_msg_t replica_msg;
+        replica_msg.ParseFromArray(msg, msg_bytes);
+        delete [] msg; 
+
+        // based on the message type, parse the information and save to the wrapper object
+        replica_msg_wrapper_t *wrapper = new replica_msg_wrapper_t();
+        wrapper->type = (replica_msg_type_t) replica_msg.type();
+        switch(wrapper->type) {
+        case REQ_VOTE_RPC:
+            request_vote_rpc_t *vote_rpc = new request_vote_rpc_t();
+            const request_vote_rpc_msg_t &vote_rpc_msg = replica_msg.request_vote_rpc_msg();
+            vote_rpc->candidate_id = vote_rpc_msg.candidate_id();
+            vote_rpc->term = vote_rpc_msg.term();
+            vote_rpc->last_log_term = vote_rpc_msg.last_log_term();
+            vote_rpc->last_log_index = vote_rpc_msg.last_log_index();
+            wrapper->payload = (void*) vote_rpc;
+            break;
+        case REQ_VOTE_RPL:
+            request_vote_reply_t *vote_reply = new request_vote_reply_t();
+            const request_vote_reply_msg_t &vote_reply_msg = replica_msg.request_vote_reply_msg();
+            vote_reply->term = vote_reply_msg.term();
+            vote_reply->vote_granted = vote_reply_msg.vote_granted();
+            wrapper->payload = (void*) vote_reply;
+            break;
+        case APP_ENTR_RPC:
+            append_entry_rpc_t *append_rpc = new append_entry_rpc_t();
+            const append_entry_rpc_msg_t &append_rpc_msg = replica_msg.append_entry_rpc_msg();
+            append_rpc->term = append_rpc_msg.term();
+            append_rpc->leader_id = append_rpc_msg.leader_id();
+            append_rpc->prev_log_index = append_rpc_msg.prev_log_index();
+            append_rpc->prev_log_term = append_rpc_msg.prev_log_term();
+            append_rpc->commit_index = append_rpc_msg.commit_index();
+            for (int i = 0; i < append_rpc_msg.entries_size(); i++) {
+                Block block;
+                Transaction txn;
+                const block_msg_t &block_msg = replica_msg.append_entry_rpc_msg().entries(i);
+                txn.set_sender_id(block_msg.txn().sender_id());
+                txn.set_recver_id(block_msg.txn().recver_id());
+                txn.set_amount(block_msg.txn().amount());
+
+                block.set_term(block_msg.term());
+                block.set_phash(block_msg.phash());
+                block.set_nonce(block_msg.nonce());
+                block.set_index(block_msg.index());
+                block.set_txn(txn);
+
+                append_rpc->entries.push_back(block);
+            }
+            wrapper->payload = (void*) append_rpc;
+            break;
+        case APP_ENTR_RPL:
+            append_entry_reply_t *append_reply = new append_entry_reply_t();
+            const append_entry_reply_msg_t &append_reply_msg = replica_msg.append_entry_reply_msg();
+            append_reply->term = append_reply_msg.term();
+            append_reply->success = append_reply_msg.success();
+            wrapper->payload = (void*) append_reply;
+            break;
+        default:
+            std::cout << "[Network::replica_recv_handler] received unknown type." << std::endl;
+        }
+        replica_msg_queue.push_back(wrapper);
+    }
+    std::cout << "[Network]::replica_recv_handler] the mesh connection is lost." << std::endl;
+    close(replica_socket);
 }
 
 void Network::replica_send_message(replica_msg_wrapper_t &msg, int id) {
@@ -170,11 +208,23 @@ void Network::replica_send_message(replica_msg_wrapper_t &msg, int id) {
  * @param msg 
  */
 void Network::replica_pop_message(replica_msg_wrapper_t &msg) {
-    // TODO: Pop out a message at the front of the queue.
-    // TODO: Fill in the msg.
+    if (replica_get_message_count() == 0) {
+        msg.type = NONE;
+        return;
+    }
+    replica_msg_wrapper_t* wrapper = replica_msg_queue.at(0);
+    replica_msg_queue.pop_front();
+    
+    msg.type = wrapper->type;
+    msg.payload = wrapper->payload;
+    delete wrapper;
 }
 
-// Clients
+size_t Network::replica_get_message_count() {
+    return replica_msg_queue.size();
+}
+
+/* Clients */
 /**
  * @brief Initialize the server so that the site can accept user's connection for requests.
  * 
@@ -190,7 +240,7 @@ void Network::setup_client_server() {
     sockaddr_in addr = {0};
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = inet_addr(SERVER_IP);
-    addr.sin_port = htons(SERVER_BASE_PORT + server_id);
+    addr.sin_port = htons(SERVER_BASE_PORT);
     
     if (bind(client_server_fd, (sockaddr*)&addr, sizeof(addr)) < 0) {
         std::cerr << "[setup_replica_server] Failed to bind the socket." << std::endl;
@@ -269,7 +319,7 @@ void Network::client_recv_handler(int client_id) {
         }
 
         // read the message body
-        msg_bytes = ntohs(msg_bytes);
+        msg_bytes = ntohl(msg_bytes);
         uint8_t* msg = new uint8_t[msg_bytes];
         count = read(sock, msg, msg_bytes);
         if (count <= 0) {
@@ -331,9 +381,7 @@ request_t* Network::client_pop_request() {
 
 
 
-size_t Network::replica_get_message_count() {
-    return server_message_queue.size();
-}
+
 
 
 
