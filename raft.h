@@ -14,7 +14,7 @@ typedef enum {
 } replica_msg_type_t;
 
 struct replica_msg_wrapper_t{
-    replica_msg_type_t type;                // type determines which struct we should cast the message payload to.
+    replica_msg_type_t type;        // type determines which struct we should cast the message payload to.
     void* payload;                  // cast this one to one of the message struct.
 };
 
