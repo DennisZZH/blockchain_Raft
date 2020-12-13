@@ -9,7 +9,7 @@ Server::Server(int id) {
     // 1) Establish connections between server through mesh
     // 2) Establish connections between clients
     this->id = id;
-    network = new Network(id);
+    network = new Network(this);
 
     // Init persistent state info
     curr_term = 0;
