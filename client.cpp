@@ -181,6 +181,7 @@ void Network::send_transaction(uint32_t recv_id, uint32_t amount, uint64_t req_i
     transaction->set_sender_id(get_client()->get_client_id());
     request_msg.set_allocated_transaction(transaction);
     request_msg.set_request_id(req_id);
+    request_msg.set_client_id(get_client()->get_client_id());
     request_msg.set_type(TRANSACTION_REQUEST);
     send_message(request_msg);
 }
@@ -188,6 +189,7 @@ void Network::send_transaction(uint32_t recv_id, uint32_t amount, uint64_t req_i
 void Network::send_balance(uint64_t req_id) {
     request_msg_t request_msg;
     request_msg.set_request_id(req_id);
+    request_msg.set_client_id(get_client()->get_client_id());
     request_msg.set_type(BALANCE_REQUEST);
     send_message(request_msg);
 }
