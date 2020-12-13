@@ -1,5 +1,6 @@
 # executable
 client
+server
 blockchain_test
 Msg.pb*
 *.dSYM

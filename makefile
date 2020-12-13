@@ -15,6 +15,9 @@ BUILD_DIR = build
 
 OBJECTS = $(addprefix $(BUILD_DIR)/, $(notdir $(SOURCES:.cpp=.o)))
 
+server: $(OBJECTS) Msg.pb.cc
+	$(CC) $(CFLAGS) $(PROTOBUF_LIB) $(OPENSSL_FLAGS) $^ -o $@ -g
+
 client: $(BUILD_DIR)/client.o Msg.pb.cc
 	$(CC) $(CFLAGS) $(PROTOBUF_LIB) $(OPENSSL_FLAGS) $^ -o $@ -g
 

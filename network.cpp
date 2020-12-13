@@ -70,7 +70,7 @@ void Network::replica_conn_handler() {
         
         // set the mesh status to be connected and start a new thread.
         mesh_connected = true;
-        replica_recv_thread = std::thread(&Network::replica_recv_handler);
+        replica_recv_thread = std::thread(&Network::replica_recv_handler, this);
 
     }
 }
@@ -138,8 +138,7 @@ void Network::replica_recv_handler() {
         // based on the message type, parse the information and save to the wrapper object
         replica_msg_wrapper_t *wrapper = new replica_msg_wrapper_t();
         wrapper->type = (replica_msg_type_t) replica_msg.type();
-        switch(wrapper->type) {
-        case REQ_VOTE_RPC:
+        if (wrapper->type == REQ_VOTE_RPC) {
             request_vote_rpc_t *vote_rpc = new request_vote_rpc_t();
             const request_vote_rpc_msg_t &vote_rpc_msg = replica_msg.request_vote_rpc_msg();
             vote_rpc->candidate_id = vote_rpc_msg.candidate_id();
@@ -147,15 +146,13 @@ void Network::replica_recv_handler() {
             vote_rpc->last_log_term = vote_rpc_msg.last_log_term();
             vote_rpc->last_log_index = vote_rpc_msg.last_log_index();
             wrapper->payload = (void*) vote_rpc;
-            break;
-        case REQ_VOTE_RPL:
+        } else if (wrapper->type == REQ_VOTE_RPL) {
             request_vote_reply_t *vote_reply = new request_vote_reply_t();
             const request_vote_reply_msg_t &vote_reply_msg = replica_msg.request_vote_reply_msg();
             vote_reply->term = vote_reply_msg.term();
             vote_reply->vote_granted = vote_reply_msg.vote_granted();
             wrapper->payload = (void*) vote_reply;
-            break;
-        case APP_ENTR_RPC:
+        } else if (wrapper->type == APP_ENTR_RPC) {
             append_entry_rpc_t *append_rpc = new append_entry_rpc_t();
             const append_entry_rpc_msg_t &append_rpc_msg = replica_msg.append_entry_rpc_msg();
             append_rpc->term = append_rpc_msg.term();
@@ -180,15 +177,13 @@ void Network::replica_recv_handler() {
                 append_rpc->entries.push_back(block);
             }
             wrapper->payload = (void*) append_rpc;
-            break;
-        case APP_ENTR_RPL:
+        } else if (wrapper->type == APP_ENTR_RPL) {
             append_entry_reply_t *append_reply = new append_entry_reply_t();
             const append_entry_reply_msg_t &append_reply_msg = replica_msg.append_entry_reply_msg();
             append_reply->term = append_reply_msg.term();
             append_reply->success = append_reply_msg.success();
             wrapper->payload = (void*) append_reply;
-            break;
-        default:
+        } else {
             std::cout << "[Network::replica_recv_handler] received unknown type." << std::endl;
         }
         replica_msg_queue.push_back(wrapper);
@@ -203,8 +198,7 @@ void Network::replica_send_message(replica_msg_wrapper_t &msg, int id) {
     send_msg.set_type(type);
     send_msg.set_receiver_id(id);
     // need to construct the send_msg based on the input msg before sending it.
-    switch (type) {
-    case REQ_VOTE_RPC:
+    if (type == REQ_VOTE_RPC) {
         auto vote_rpc = (request_vote_rpc_t*) msg.payload;
         auto vote_rpc_msg = new request_vote_rpc_msg_t();
         vote_rpc_msg->set_term(vote_rpc->last_log_term);
@@ -212,15 +206,13 @@ void Network::replica_send_message(replica_msg_wrapper_t &msg, int id) {
         vote_rpc_msg->set_last_log_index(vote_rpc->last_log_index);
         vote_rpc_msg->set_last_log_term(vote_rpc->last_log_term);
         send_msg.set_allocated_request_vote_rpc_msg(vote_rpc_msg);
-        break;
-    case REQ_VOTE_RPL:
+    } if (type == REQ_VOTE_RPL) {
         auto vote_rpl = (request_vote_reply_t*) msg.payload;
         auto vote_rpl_msg = new request_vote_reply_msg_t();
-        vote_rpc_msg->set_term(vote_rpl->term);
+        vote_rpl_msg->set_term(vote_rpl->term);
         vote_rpl_msg->set_vote_granted(vote_rpl->vote_granted);
         send_msg.set_allocated_request_vote_reply_msg(vote_rpl_msg);
-        break;
-    case APP_ENTR_RPC:
+    } if (type == APP_ENTR_RPC) {
         auto append_rpc = (append_entry_rpc_t*) msg.payload;
         auto append_rpc_msg = new append_entry_rpc_msg_t();
         append_rpc_msg->set_term(append_rpc->term);
@@ -246,15 +238,13 @@ void Network::replica_send_message(replica_msg_wrapper_t &msg, int id) {
             block_msg->set_index(block.get_index());
         }
         send_msg.set_allocated_append_entry_rpc_msg(append_rpc_msg);
-        break;
-    case APP_ENTR_RPL:
+    } if (type == APP_ENTR_RPL) {
         auto append_reply = (append_entry_reply_t*) msg.payload;
         auto append_reply_msg = new append_entry_reply_msg_t();
         append_reply_msg->set_term(append_reply->term);
         append_reply_msg->set_success(append_reply->success);
         send_msg.set_allocated_append_entry_reply_msg(append_reply_msg);
-        break;
-    default:
+    } else {
         std::cout << "[Network::replica_recv_handler] try to send unknown type." << std::endl;
         return;
     }
@@ -432,6 +422,10 @@ void Network::client_push_request(request_t* request) {
     client_req_mutex.lock();
     client_req_queue.push_back(request);    
     client_req_mutex.unlock();
+}
+
+size_t Network::client_get_request_count() {
+    return client_req_queue.size();
 }
 
 /**

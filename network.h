@@ -29,9 +29,7 @@ class Network {
 private:
     Server *context;
     bool stop_flag = false;
-    
-    Network(Server *context);
-    
+
     Server* get_context() {return context;};
 
     /////////////////////
@@ -63,7 +61,7 @@ private:
 public:
     const uint32_t RECYCLE_CHECK_SLEEP_MS = 50;                         // The sleep time until check next time if the queue is empty.
     
-    Network(int id);
+    Network(Server *context);
     
     // replica related APIs
     void replica_send_message(replica_msg_wrapper_t &msg, int id = -1);            // Send the message to the served identified by the id. If id == -1, send to all.

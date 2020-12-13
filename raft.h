@@ -1,7 +1,9 @@
 #pragma once
 #include <stdint.h>
 #include "parameter.h"
-#include "blockchain.h"
+
+// declarations
+class Block;
 
 typedef uint32_t term_t;
 
