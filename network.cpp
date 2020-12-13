@@ -193,6 +193,11 @@ void Network::replica_recv_handler() {
 }
 
 void Network::replica_send_message(replica_msg_wrapper_t &msg, int id) {
+    if (id == -1) {
+        for (int i = 0; i < SERVER_COUNT; i++)
+            replica_send_message(msg, i);
+        return;
+    }
     replica_msg_type_t type = msg.type;
     replica_msg_t send_msg;
     send_msg.set_type(type);
@@ -439,8 +444,29 @@ request_t* Network::client_pop_request() {
 }
 
 
-void Network::client_send_message(response_t& reponse, int client_id) {
-    return;
+void Network::client_send_message(response_t& response, int client_id) {
+    if (client_id == -1) {
+        for (int i = 0; i < CLIENT_COUNT; i++)
+            client_send_message(response, i);
+        return;
+    }
+
+    if (!clients[client_id].connected) {
+        std::cout << "[Network::client_send_message] client: " << client_id << " is not connected." << std::endl;
+        return;
+    }
+
+    response_msg_t response_msg;
+    response_msg.set_type(response.type);
+    response_msg.set_request_id(response.request_id);
+    response_msg.set_succeed(response.succeed);
+    // the following values might be not valid depends on the type.
+    response_msg.set_balance(response.balance);
+    response_msg.set_leader_id(response.leader_id);
+    
+    COMM_HEADER_TYPE msg_bytes = htonl(response_msg.ByteSizeLong());
+    write(clients[client_id].sock, &msg_bytes, sizeof(msg_bytes));
+    write(clients[client_id].sock, response_msg.SerializeAsString().c_str(), response_msg.ByteSizeLong());
 }
 
 size_t Network::client_get_request_count() {
