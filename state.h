@@ -33,6 +33,7 @@ public:
 
 class LeaderState : public State {
 private:
+    uint32_t nextIndex[CLIENT_COUNT];
     std::chrono::system_clock::time_point last_heartbeat_time;
     void send_heartbeat();
 public:

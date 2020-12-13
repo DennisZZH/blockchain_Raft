@@ -222,27 +222,34 @@ exit:
 
 // Leader State 
 void LeaderState::send_heartbeat() {
-    append_entry_rpc_t* heartbeat = new append_entry_rpc_t();
-    heartbeat->term = get_context()->get_curr_term();
-    heartbeat->leader_id = get_context()->get_id();
-    //heartbeat->entry_count = 0;                                     // Heartbeat doesn't contain any log.
+    append_entry_rpc_t heartbeat;
+    heartbeat.term = get_context()->get_curr_term();
+    heartbeat.leader_id = get_context()->get_id();
+    // Heartbeat doesn't contain any log.
     
     // Need to wrap the heartbeat with replica_msg_wrapper_t because it's the msg used by the network.
     replica_msg_wrapper_t msg;
     msg.type = APP_ENTR_RPC;
-    msg.payload = heartbeat;
+    msg.payload = (void*) &heartbeat;
 
-    // Transmit the heartbeat.
+    // Broadcast the heartbeat to all peers
     get_context()->get_network()->replica_send_message(msg);
-    delete heartbeat;
 
     last_heartbeat_time = std::chrono::system_clock::now();
 }
 
 
-void LeaderState::run() { 
-    // Need to send the initial heartbeat first.
+void LeaderState::run() {
+    Network* network = get_context()->get_network();
+
+    // Initialize nextIndex for each replica to last log index + 1
+    int last_log_index = get_context()->get_bc_log().get_last_block().get_index();
+    for (int i = 0; i < CLIENT_COUNT; i++) {
+        nextIndex[i] = last_log_index + 1;
+    }
+    // Send the initial heartbeat to all; Declear the fact the I am elected as leader
     send_heartbeat();
+
     while (true) {
         auto curr_time = std::chrono::system_clock::now();
         auto dt = curr_time - last_heartbeat_time;
@@ -253,11 +260,17 @@ void LeaderState::run() {
             continue;
         }
 
-        // TODO: Calculate next_index for each entry.
-        // REVIEW: How to get the lastest log entry from the servers?
+        // If the request buffer is empty then do nothing, waiting for another round to check.
+        if (network->client_get_request_count() == 0) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(MSG_CHECK_SLEEP_MS));
+            continue;
+        }
 
-        // TODO: Fetch the client command.
-        // TODO: Append new entry to local.
+        // Fetch the client command.
+        request_t *msg_ptr =  network->client_pop_request();
+        // Append new entry to local.
+        
+
         // TODO: Do the sync if the last log index >= next_index. If fails decrement next_index aand retry.
         // TODO: Mark log commited if stored on a majority and at least one entry stored in the current term.
         // TODO: Step down if the current term changes.
