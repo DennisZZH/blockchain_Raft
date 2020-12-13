@@ -3,8 +3,9 @@ syntax = "proto2";
 // Messages for Client & Server communication
 message request_msg_t {
     required uint32 type = 1;
-    required uint64 request_id = 2;
-    optional txn_msg_t transaction = 3;
+    required uint32 client_id = 2;
+    required uint64 request_id = 3;
+    optional txn_msg_t transaction = 4;
 }
 
 message response_msg_t {
