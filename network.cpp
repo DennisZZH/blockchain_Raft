@@ -425,10 +425,6 @@ void Network::client_push_request(request_t* request) {
     client_req_mutex.unlock();
 }
 
-size_t Network::client_get_request_count() {
-    return client_req_queue.size();
-}
-
 /**
  * @brief pop the earliest request from the queue
  * 
@@ -442,6 +438,14 @@ request_t* Network::client_pop_request() {
     return req;
 }
 
+
+void Network::client_send_message(response_t& reponse, int client_id) {
+    return;
+}
+
+size_t Network::client_get_request_count() {
+    return client_req_queue.size();
+}
 
 
 

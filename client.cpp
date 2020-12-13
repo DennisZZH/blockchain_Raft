@@ -160,7 +160,7 @@ void Network::recv_handler(int index) {
  * @param request_msg 
  */
 void Network::send_message(request_msg_t &request_msg) {
-    const char* msg_string = request_msg.SerializeAsString().c_str();
+    std::string msg_string = request_msg.SerializeAsString();
     COMM_HEADER_TYPE header = htonl(request_msg.ByteSizeLong());
     
     uint32_t leader_id = get_client()->get_leader_id();
@@ -170,7 +170,7 @@ void Network::send_message(request_msg_t &request_msg) {
     }
 
     write(servers[leader_id].sock, &header, sizeof(header));
-    write(servers[leader_id].sock, msg_string, request_msg.ByteSizeLong());
+    write(servers[leader_id].sock, msg_string.c_str(), request_msg.ByteSizeLong());
 }
 
 void Network::send_transaction(uint32_t recv_id, uint32_t amount, uint64_t req_id) {
