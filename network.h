@@ -65,7 +65,7 @@ public:
     Network(int id);
     
     // replica related APIs
-    void replica_send_message(replica_msg_type_t &msg, int id = -1);            // Send the message to the served identified by the id. If id == -1, send to all.
+    void replica_send_message(replica_msg_wrapper_t &msg, int id = -1);            // Send the message to the served identified by the id. If id == -1, send to all.
     void replica_pop_message(replica_msg_wrapper_t &msg);                       // Pop the message saved in the message queue and fill the info into msg.
     size_t replica_get_message_count();                                         // Get the count in the message buffer.
 

@@ -24,14 +24,14 @@ void CandidateState::run() {
     // rpc->last_log_term = 
     rpc->term = term;
     
-    msg_t send_msg;
+    replica_msg_wrapper_t send_msg;
     send_msg.type = REQ_VOTE_RPC;
     send_msg.payload = rpc;
     // Send the message to other servers
     network->replica_send_message(send_msg);
     delete rpc;
 
-    msg_t recv_msg;
+    replica_msg_wrapper_t recv_msg;
     while(true) {
         // Get the time difference first for checking the timeout.
         auto curr_timestamp = std::chrono::system_clock::now();
@@ -65,7 +65,7 @@ void CandidateState::run() {
             request_vote_reply_t vote_rpl = {0};
             vote_rpl.term = get_context()->get_curr_term();
             vote_rpl.vote_granted = false;
-            // Wrap the reply with the msg_t for sending.
+            // Wrap the reply with the replica_msg_wrapper_t for sending.
             send_msg.type = REQ_VOTE_RPL;
             send_msg.payload = &vote_rpl;
             network->replica_send_message(send_msg, vote_rpc->candidate_id);
@@ -132,7 +132,7 @@ void FollowerState::run() {
         }
 
         // Receiving valid PRC
-        msg_t msg;
+        replica_msg_wrapper_t msg;
         network->replica_pop_message(msg);
         if (msg.type == APP_ENTR_RPC) {
             auto append_rpc = (append_entry_rpc_t*) msg.payload;
@@ -176,12 +176,10 @@ void FollowerState::run() {
             }
 
             // Reply is ready; Prepare a message
-            // TODO
-            msg_t reply_msg;
-            reply_msg.type = msg_type_t::REQ_VOTE_RPL;
-            //reply_msg.payload = (void*)  ?
-            network->send_message(reply_msg, vote_rpc->candidate_id);           
-
+            replica_msg_wrapper_t reply_msg;
+            reply_msg.type = replica_msg_type_t::REQ_VOTE_RPL;
+            reply_msg.payload = (void*) &reply;
+            network->replica_send_message(reply_msg, vote_rpc->candidate_id);           
         }
         else {
             // REVIEW: A follower simply ignore all other messages
@@ -199,8 +197,8 @@ void LeaderState::send_heartbeat() {
     heartbeat->leader_id = get_context()->get_id();
     heartbeat->entry_count = 0;                                     // Heartbeat doesn't contain any log.
     
-    // Need to wrap the heartbeat with msg_t because it's the msg used by the network.
-    msg_t msg;
+    // Need to wrap the heartbeat with replica_msg_wrapper_t because it's the msg used by the network.
+    replica_msg_wrapper_t msg;
     msg.type = APP_ENTR_RPC;
     msg.payload = heartbeat;
 
