@@ -204,7 +204,7 @@ void Network::setup_client_server() {
     }
     
     client_wait_thread = std::thread(&Network::client_wait_handler, this);
-    client_recycle_thread = std::thread(&Network::client_recycle_handler, this);
+    // client_recycle_thread = std::thread(&Network::client_recycle_handler, this);
 }
 
 
