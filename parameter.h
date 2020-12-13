@@ -21,8 +21,9 @@
 #define MESH_PORT               9000
 
 // raft replica information
-#define RAFT_CLIENT_BASE_PORT       8900            // port# replicas use when connecting to the mesh
-#define REPLICA_SERVER_BASE_PORT
+// replica sites bind to the following ip and port when connecting to the mesh
+#define REPLICA_CLIENT_IP              "127.0.0.1"
+#define REPLICA_CLIENT_BASE_PORT       8900
 
 #define NULL_CANDIDATE_ID -1
 

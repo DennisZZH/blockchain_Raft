@@ -37,9 +37,9 @@ namespace RaftClient {
         Client* client = NULL;
         
         server_t servers[SERVER_COUNT] = {
-            {.connected = false, .id = 0, .port = REPLICA_SERVER_BASE_PORT + 0, .sock = 0, NULL},
-            {.connected = false, .id = 1, .port = REPLICA_SERVER_BASE_PORT + 1, .sock = 0, NULL},
-            {.connected = false, .id = 2, .port = REPLICA_SERVER_BASE_PORT + 2, .sock = 0, NULL}
+            {.connected = false, .id = 0, .port = SERVER_BASE_PORT + 0, .sock = 0, NULL},
+            {.connected = false, .id = 1, .port = SERVER_BASE_PORT + 1, .sock = 0, NULL},
+            {.connected = false, .id = 2, .port = SERVER_BASE_PORT + 2, .sock = 0, NULL}
         };
 
         // threads declarations
