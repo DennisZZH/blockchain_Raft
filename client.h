@@ -2,7 +2,7 @@
 #include <thread>
 #include <stdint.h>
 #include "parameter.h"
-#include "message.h"
+#include "Msg.pb.h"
 
 namespace RaftClient {
     class Network;
@@ -48,7 +48,7 @@ namespace RaftClient {
         
         void send_message(request_msg_t &);
         
-        Client* get_client();
+        Client* get_client() {return client;};
 
         // thread function kept trying to connect to three servers.
         void conn_handler();

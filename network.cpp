@@ -198,6 +198,74 @@ void Network::replica_recv_handler() {
 }
 
 void Network::replica_send_message(replica_msg_wrapper_t &msg, int id) {
+    replica_msg_type_t type = msg.type;
+    replica_msg_t send_msg;
+    send_msg.set_type(type);
+    send_msg.set_receiver_id(id);
+    // need to construct the send_msg based on the input msg before sending it.
+    switch (type) {
+    case REQ_VOTE_RPC:
+        auto vote_rpc = (request_vote_rpc_t*) msg.payload;
+        auto vote_rpc_msg = new request_vote_rpc_msg_t();
+        vote_rpc_msg->set_term(vote_rpc->last_log_term);
+        vote_rpc_msg->set_candidate_id(vote_rpc->candidate_id);
+        vote_rpc_msg->set_last_log_index(vote_rpc->last_log_index);
+        vote_rpc_msg->set_last_log_term(vote_rpc->last_log_term);
+        send_msg.set_allocated_request_vote_rpc_msg(vote_rpc_msg);
+        break;
+    case REQ_VOTE_RPL:
+        auto vote_rpl = (request_vote_reply_t*) msg.payload;
+        auto vote_rpl_msg = new request_vote_reply_msg_t();
+        vote_rpc_msg->set_term(vote_rpl->term);
+        vote_rpl_msg->set_vote_granted(vote_rpl->vote_granted);
+        send_msg.set_allocated_request_vote_reply_msg(vote_rpl_msg);
+        break;
+    case APP_ENTR_RPC:
+        auto append_rpc = (append_entry_rpc_t*) msg.payload;
+        auto append_rpc_msg = new append_entry_rpc_msg_t();
+        append_rpc_msg->set_term(append_rpc->term);
+        append_rpc_msg->set_leader_id(append_rpc->leader_id);
+        append_rpc_msg->set_prev_log_index(append_rpc->prev_log_index);
+        append_rpc_msg->set_prev_log_term(append_rpc->prev_log_term);
+        append_rpc_msg->set_commit_index(append_rpc->commit_index);
+        for (int i = 0; i < append_rpc->entries.size(); i++) {
+            auto block_msg = append_rpc_msg->add_entries();
+            Block &block = append_rpc->entries.at(i);
+            // allocate phash, nonce and txn for the block_msg
+            std::string* phash = new std::string(block.get_phash());
+            std::string* nonce = new std::string(block.get_nonce());
+            auto txn_msg = new txn_msg_t();
+            txn_msg->set_sender_id(block.get_txn().get_sender_id());
+            txn_msg->set_recver_id(block.get_txn().get_recver_id());
+            txn_msg->set_amount(block.get_txn().get_amount());
+            // construct the block_msg
+            block_msg->set_term(block.get_term());
+            block_msg->set_allocated_phash(phash);
+            block_msg->set_allocated_nonce(nonce);
+            block_msg->set_allocated_txn(txn_msg);
+            block_msg->set_index(block.get_index());
+        }
+        send_msg.set_allocated_append_entry_rpc_msg(append_rpc_msg);
+        break;
+    case APP_ENTR_RPL:
+        auto append_reply = (append_entry_reply_t*) msg.payload;
+        auto append_reply_msg = new append_entry_reply_msg_t();
+        append_reply_msg->set_term(append_reply->term);
+        append_reply_msg->set_success(append_reply->success);
+        send_msg.set_allocated_append_entry_reply_msg(append_reply_msg);
+        break;
+    default:
+        std::cout << "[Network::replica_recv_handler] try to send unknown type." << std::endl;
+        return;
+    }
+    
+    // send the header first
+    COMM_HEADER_TYPE msg_bytes = htonl(send_msg.ByteSizeLong());
+    write(replica_socket, &msg_bytes, sizeof(msg_bytes));
+    // send the message next
+    std::string msg_string = send_msg.SerializeAsString();
+    write(replica_socket, msg_string.c_str(), send_msg.ByteSizeLong());
+    // no need to free dynamically allocated data because they will be freed by send_msg.
     return;
 }
 

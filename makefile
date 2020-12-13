@@ -15,7 +15,7 @@ BUILD_DIR = build
 
 OBJECTS = $(addprefix $(BUILD_DIR)/, $(notdir $(SOURCES:.cpp=.o)))
 
-client: $(BUILD_DIR)/client.o
+client: $(BUILD_DIR)/client.o Msg.pb.cc
 	$(CC) $(CFLAGS) $(PROTOBUF_LIB) $(OPENSSL_FLAGS) $^ -o $@ -g
 
 blockchain_test: blockchain_test.cpp
@@ -25,7 +25,7 @@ message: Msg.proto
 	$(PC) -I=. --cpp_out=. ./Msg.proto
 
 
-$(BUILD_DIR)/%.o: %.cpp	$(BUILD_DIR)
+$(BUILD_DIR)/%.o: %.cpp $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(PROTOBUF_LIB) $(OPENSSL_FLAGS) -c $^ -o $@ -g
 
 $(BUILD_DIR):

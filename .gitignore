@@ -2,6 +2,7 @@
 client
 blockchain_test
 Msg.pb*
+*.dSYM
 
 # Prerequisites
 *.d
