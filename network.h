@@ -71,6 +71,6 @@ public:
     // request related APIs
     void client_push_request(request_t* request);
     request_t* client_pop_request();
-    void client_send_message();
+    void client_send_message(response_t& reponse);
     size_t client_get_request_count();
 };
