@@ -19,6 +19,6 @@ int main(int argc, char* argv[]) {
         exit(1);
     }
 
-    Network network = Network(cid);
+    // Network network = Network(cid);
     while(true);
 }
