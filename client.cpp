@@ -11,6 +11,15 @@ using namespace RaftClient;
 
 #define DEBUG_MODE
 
+Client::Client(int id) {
+    client_id = id;
+    network = new Network(this);
+}
+
+Client::~Client() {
+    delete network;
+}
+
 Network::Network(Client *client) {
     this->client = client;
     conn_thread = std::thread(&Network::conn_handler, this);
@@ -48,6 +57,20 @@ void Network::conn_handler() {
             if (setsockopt(s, SOL_SOCKET, SO_REUSEPORT, &status, sizeof(status)) < 0) {
                 #ifdef DEBUG_MODE
                 std::cerr << "[Network::conn_handler] failed to set the socket options." << std::endl;
+                #endif
+                continue;
+            }
+
+            // bind client id to a specific port so that the server
+            // side can identity the client id based on the client port
+            sockaddr_in self_addr = {0}; 
+            self_addr.sin_family = AF_INET;
+            self_addr.sin_addr.s_addr = inet_addr(CLIENT_IP);
+            self_addr.sin_port = htons(CLIENT_BASE_PORT + get_client()->get_client_id());
+
+            if (bind(s, (sockaddr*) &self_addr, sizeof(self_addr)) < 0) {
+                #ifdef DEBUG_MODE
+                std::cerr << "[Network::conn_handler] failed to bind the self port." << std::endl;
                 #endif
                 continue;
             }
@@ -110,6 +133,7 @@ void Network::recv_handler(int index) {
         // read the body message
         count = read(server_sock, msg, msg_bytes);
         if (count <= 0) {
+            delete [] msg;
             break;
         } else if (count < msg_bytes) {
             std::cout << "[Network::recv_handler] received borken message from server " << server_id << std::endl;

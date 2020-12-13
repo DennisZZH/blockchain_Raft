@@ -67,4 +67,3 @@ void Server::run_state_machine() {
         run_state();
     }
 }
-

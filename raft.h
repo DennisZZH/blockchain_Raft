@@ -5,6 +5,19 @@
 
 typedef uint32_t term_t;
 
+typedef enum {
+    NONE,
+    REQ_VOTE_RPC,               // request vote RPC
+    REQ_VOTE_RPL,               // request vote reply
+    APP_ENTR_RPC,               // append entry RPC
+    APP_ENTR_RPL                // append entry reply
+} replica_msg_type_t;
+
+struct replica_msg_wrapper_t{
+    replica_msg_type_t type;                // type determines which struct we should cast the message payload to.
+    void* payload;                  // cast this one to one of the message struct.
+};
+
 struct request_vote_rpc_t{
     int candidate_id;               // the candidate's id who is requesting votes
     term_t term;                    // candidate's term

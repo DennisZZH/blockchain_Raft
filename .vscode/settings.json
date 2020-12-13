@@ -76,6 +76,11 @@
         "mutex": "cpp",
         "queue": "cpp",
         "set": "cpp",
-        "cinttypes": "cpp"
+        "cinttypes": "cpp",
+        "codecvt": "cpp",
+        "fstream": "cpp",
+        "map": "cpp",
+        "stack": "cpp",
+        "unordered_set": "cpp"
     }
 }

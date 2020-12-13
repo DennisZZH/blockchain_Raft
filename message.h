@@ -1,5 +1,13 @@
+/**
+ * @file message.h
+ * @brief shared by clients and servers
+ * 
+ * @copyright Copyright (c) 2020
+ * 
+ */
 #pragma once
 #include <stdint.h>
+#include "Msg.pb.h"
 
 typedef enum {
     TRANSACTION_REQUEST,
@@ -15,4 +23,10 @@ struct response_t {
     bool succeed;
     uint32_t balance;
     uint32_t leader_id;
+};
+
+struct request_t {
+    message_type_t type;
+    uint64_t request_id;
+    void* additional;
 };
