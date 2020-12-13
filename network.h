@@ -64,13 +64,13 @@ public:
     Network(Server *context);
     
     // replica related APIs
-    void replica_send_message(replica_msg_wrapper_t &msg, int id = -1);            // Send the message to the served identified by the id. If id == -1, send to all.
+    void replica_send_message(replica_msg_wrapper_t &msg, int id = -1);         // Send the message to the replica identified by the id. If id == -1, send to all.
     void replica_pop_message(replica_msg_wrapper_t &msg);                       // Pop the message saved in the message queue and fill the info into msg.
     size_t replica_get_message_count();                                         // Get the count in the message buffer.
 
     // request related APIs
     void client_push_request(request_t* request);
     request_t* client_pop_request();
-    void client_send_message(response_t& reponse);
+    void client_send_message(response_t& reponse, int client_id = -1);          // Send the message to the client identified by the id. If id == -1, send to all.   
     size_t client_get_request_count();
 };
