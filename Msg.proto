@@ -22,7 +22,7 @@ message txn_msg_t {
     required uint32 sender_id = 1;
     required uint32 recver_id = 2;
     required float amount = 3;
-    required bool bal_txn_flag = 4;
+    optional bool bal_txn_flag = 4;
 }
 
 message block_msg_t {

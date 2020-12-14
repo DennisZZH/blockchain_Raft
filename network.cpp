@@ -390,7 +390,7 @@ void Network::client_recv_handler(int client_id) {
         request_t *request = new request_t();
         bzero(request, sizeof(request_t));
         request->type = (message_type_t)request_msg.type();
-        request->client_id = get_context()->get_id();
+        request->client_id = request_msg.client_id();
         request->request_id = request_msg.request_id();
         if (request->type == TRANSACTION_REQUEST) {
             uint32_t sid = request_msg.transaction().sender_id();
