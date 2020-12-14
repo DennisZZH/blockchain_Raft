@@ -9,7 +9,6 @@
 
 Network::Network(Server *context) {
     this->context = context;
-    
     setup_replica_server();
     setup_client_server();
 }
@@ -21,6 +20,7 @@ Network::Network(Server *context) {
  * 
  */
 void Network::replica_conn_handler() {
+    std::cout << "[Network::replica_conn_handler] trying to connect to other replica through network mesh." << std::endl;
     while(!stop_flag) {
         if (mesh_connected) {
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
@@ -29,8 +29,9 @@ void Network::replica_conn_handler() {
         
         replica_socket = socket(AF_INET, SOCK_STREAM, 0);
         int flag;
-        if (setsockopt(replica_socket, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)) < 0) {
+        if (setsockopt(replica_socket, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag)) < 0) {
             std::cerr << "[Network::replica_conn_handler] failed to set the socket options." << std::endl;
+            close(replica_socket);
             continue;
         }
 
@@ -80,29 +81,7 @@ void Network::replica_conn_handler() {
  * 
  */
 void Network::setup_replica_server() {
-    // replica_server_fd = socket(AF_INET, SOCK_STREAM, 0);
-    // int flag;
-    // if (setsockopt(replica_server_fd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)) < 0) {
-    //     std::cerr << "[setup_replica_server] Failed to set the socket options." << std::endl;
-    //     exit(1);
-    // }
-    // sockaddr_in server_addr = {0};
-    // server_addr.sin_family = AF_INET;
-    // server_addr.sin_addr.s_addr = inet_addr(REPLICA_SERVER_IP);
-    // server_addr.sin_port = htons(REPLICA_SERVER_BASE_PORT + server_id);
-    //
-    // if (bind(replica_server_fd, (sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
-    //     std::cerr << "[setup_replica_server] Failed to bind the socket." << std::endl;
-    //     exit(1);
-    // }
-    //
-    // if (listen(replica_server_fd, REPLICA_NODE_COUNT * 2) < 0) {
-    //     std::cerr << "[setup_replica_server] Failed to listen the port." << std::endl;
-    //     exit(1);
-    // }
-    //
-    // replica_wait_thread = std::thread(&Network::wait_connection, this);
-    // replica_conn_thread = std::thread(&Network::replica_conn_handler, this);
+    replica_conn_thread = std::thread(&Network::replica_conn_handler, this);
 }
  
 
@@ -181,6 +160,7 @@ void Network::replica_recv_handler() {
             append_entry_reply_t *append_reply = new append_entry_reply_t();
             const append_entry_reply_msg_t &append_reply_msg = replica_msg.append_entry_reply_msg();
             append_reply->term = append_reply_msg.term();
+            append_reply->sender_id = append_reply_msg.sender_id();
             append_reply->success = append_reply_msg.success();
             wrapper->payload = (void*) append_reply;
         } else {
@@ -193,6 +173,11 @@ void Network::replica_recv_handler() {
 }
 
 void Network::replica_send_message(replica_msg_wrapper_t &msg, int id) {
+    if (id == -1) {
+        for (int i = 0; i < SERVER_COUNT; i++)
+            replica_send_message(msg, i);
+        return;
+    }
     replica_msg_type_t type = msg.type;
     replica_msg_t send_msg;
     send_msg.set_type(type);
@@ -242,6 +227,7 @@ void Network::replica_send_message(replica_msg_wrapper_t &msg, int id) {
         auto append_reply = (append_entry_reply_t*) msg.payload;
         auto append_reply_msg = new append_entry_reply_msg_t();
         append_reply_msg->set_term(append_reply->term);
+        append_reply_msg->set_sender_id(append_reply->sender_id);
         append_reply_msg->set_success(append_reply->success);
         send_msg.set_allocated_append_entry_reply_msg(append_reply_msg);
     } else {
@@ -290,7 +276,7 @@ size_t Network::replica_get_message_count() {
 void Network::setup_client_server() {
     client_server_fd = socket(AF_INET, SOCK_STREAM, 0);
     int flag;
-    if (setsockopt(client_server_fd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)) < 0) {
+    if (setsockopt(client_server_fd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag)) < 0) {
         std::cerr << "[setup_client_server] Failed to set the socket options." << std::endl;
         exit(1);
     }
@@ -439,8 +425,29 @@ request_t* Network::client_pop_request() {
 }
 
 
-void Network::client_send_message(response_t& reponse, int client_id) {
-    return;
+void Network::client_send_message(response_t& response, int client_id) {
+    if (client_id == -1) {
+        for (int i = 0; i < CLIENT_COUNT; i++)
+            client_send_message(response, i);
+        return;
+    }
+
+    if (!clients[client_id].connected) {
+        std::cout << "[Network::client_send_message] client: " << client_id << " is not connected." << std::endl;
+        return;
+    }
+
+    response_msg_t response_msg;
+    response_msg.set_type(response.type);
+    response_msg.set_request_id(response.request_id);
+    response_msg.set_succeed(response.succeed);
+    // the following values might be not valid depends on the type.
+    response_msg.set_balance(response.balance);
+    response_msg.set_leader_id(response.leader_id);
+    
+    COMM_HEADER_TYPE msg_bytes = htonl(response_msg.ByteSizeLong());
+    write(clients[client_id].sock, &msg_bytes, sizeof(msg_bytes));
+    write(clients[client_id].sock, response_msg.SerializeAsString().c_str(), response_msg.ByteSizeLong());
 }
 
 size_t Network::client_get_request_count() {

@@ -44,6 +44,7 @@ struct append_entry_rpc_t{
 
 struct append_entry_reply_t{
     term_t term;                    // the term of the replier
+    int sender_id;                  // who send the message
     bool success;                   // indicates wether the append is successful.
 };              
 

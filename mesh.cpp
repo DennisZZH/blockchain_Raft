@@ -37,8 +37,9 @@ Mesh::~Mesh() {
 void Mesh::setup_mesh_server() {
     mesh_sock = socket(AF_INET, SOCK_STREAM, 0);
     int status = 0;
-    if (setsockopt(mesh_sock, SOL_SOCKET, SO_REUSEPORT, &status, sizeof(status)) < 0) {
+    if (setsockopt(mesh_sock, SOL_SOCKET, SO_REUSEADDR, &status, sizeof(status)) < 0) {
         std::cerr << "[Mesh::setup_mesh_server] failed to set the socket options." << std::endl;
+        close(mesh_sock);
         exit(1);
     }
     
@@ -49,11 +50,13 @@ void Mesh::setup_mesh_server() {
     
     if (bind(mesh_sock, (sockaddr*) &bind_addr, sizeof(sockaddr_in)) < 0) {
         std::cerr << "[Mesh::setup_mesh_server] failed to bind the socket to mesh port." << std::endl;
+        close(mesh_sock);
         exit(1);
     }
     
     if (listen(mesh_sock, SERVER_COUNT) < 0) {
         std::cerr << "[Mesh::setup_mesh_server] failed to listen the port." << std::endl;
+        close(mesh_sock);
         exit(1);
     }
 
@@ -85,6 +88,7 @@ void Mesh::flush_server_trans_queue(int replica_id) {
 }
 
 void Mesh::wait_conn_handler() {
+    std::cout << "[Mesh::wait_conn_handler] waiting for replicas to connect." << std::endl;
     while (!is_stopped) {
         sockaddr_in replica_addr = {0};
         socklen_t addr_size = sizeof(replica_addr);
@@ -100,11 +104,13 @@ void Mesh::wait_conn_handler() {
         
         if (replica_id > 2 || replica_id < 0) {
             std::cerr << "[Mesh::wait_conn_handler] received invalid replica_id: " << replica_id << std::endl;
+            close(replica_sock);
             continue;
         }
 
         if (servers[replica_id].connected == true) {
             std::cerr << "[Mesh::wait_conn_handler] replica: " << replica_id << " is already connected." << std::endl;
+            close(replica_sock);
             continue;
         }
 
@@ -136,6 +142,7 @@ void Mesh::wait_conn_handler() {
 }
 
 void Mesh::recv_handler(int replica_id) {
+    std::cout << "[Network::recv_handler] listening server: " << replica_id << " for messages." << std::endl;
     int replica_sock = servers[replica_id].sock;
     while (!is_stopped && servers[replica_id].connected) {
         COMM_HEADER_TYPE msg_bytes = 0;
@@ -174,7 +181,9 @@ void Mesh::recv_handler(int replica_id) {
             delete replica_msg;
         }
     }
+    std::cout << "[Network::recv_handler] server: " << replica_id << " disconnected." << std::endl;
     servers[replica_id].connected = false;
+    close(servers[replica_id].sock);
 }
 
 void Mesh::send_handler(int replica_id) {
@@ -208,10 +217,14 @@ void Mesh::send_handler(int replica_id) {
         write(servers[replica_id].sock, &trans_bytes, sizeof(trans_bytes));
 
         // 2. transfer the body next
-
-        const char* trans_str = msg->SerializeAsString().c_str();
-        write(servers[replica_id].sock, trans_str, msg->ByteSizeLong());
+        std::string trans_str = msg->SerializeAsString();
+        write(servers[replica_id].sock, trans_str.c_str(), msg->ByteSizeLong());
         delete msg;
     }
     servers[replica_id].connected = false;
+}
+
+int main(int argc, char* argv[]) {
+    Mesh mesh;
+    while(true);
 }
