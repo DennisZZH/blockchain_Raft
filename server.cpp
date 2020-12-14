@@ -66,6 +66,8 @@ void Server::run_state_machine() {
 }
 
 void Server::update_bal_tab_and_committed_index(uint32_t new_index) {
+    if (new_index >= bc_log.get_blockchain_length()) return;
+
     int old_index = bc_log.get_committed_index();
     for (int bid = old_index + 1; bid <= new_index; bid++) {
         Transaction tmp = bc_log.get_block_by_index(bid).get_txn();
