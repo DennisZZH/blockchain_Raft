@@ -7,13 +7,21 @@
 #include "message.h"
 #include "server.h"
 
+#define DEBUG_MODE
+
 Network::Network(Server *context) {
     this->context = context;
     setup_replica_server();
     setup_client_server();
 }
 
-
+/**
+ * @brief Initialize the server and connections between replicas.
+ * 
+ */
+void Network::setup_replica_server() {
+    replica_conn_thread = std::thread(&Network::replica_conn_handler, this);
+}
 
 /**
  * @brief thread function that connects the current the current replica to the mesh
@@ -29,7 +37,7 @@ void Network::replica_conn_handler() {
         
         replica_socket = socket(AF_INET, SOCK_STREAM, 0);
         int flag;
-        if (setsockopt(replica_socket, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag)) < 0) {
+        if (setsockopt(replica_socket, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)) < 0) {
             std::cerr << "[Network::replica_conn_handler] failed to set the socket options." << std::endl;
             close(replica_socket);
             continue;
@@ -75,15 +83,6 @@ void Network::replica_conn_handler() {
 
     }
 }
-
-/**
- * @brief Initialize the server and connections between replicas.
- * 
- */
-void Network::setup_replica_server() {
-    replica_conn_thread = std::thread(&Network::replica_conn_handler, this);
-}
- 
 
 void Network::replica_recv_handler() {
     std::cout << "[Network::replica_recv_handler] start receiving mesh messages." << std::endl;
@@ -167,6 +166,7 @@ void Network::replica_recv_handler() {
             std::cout << "[Network::replica_recv_handler] received unknown type." << std::endl;
         }
         replica_msg_queue.push_back(wrapper);
+        std::cout << "[Network::replica_recv_handler] received and saved." << std::endl;
     }
     std::cout << "[Network]::replica_recv_handler] the mesh connection is lost." << std::endl;
     close(replica_socket);
@@ -174,8 +174,11 @@ void Network::replica_recv_handler() {
 
 void Network::replica_send_message(replica_msg_wrapper_t &msg, int id) {
     if (id == -1) {
-        for (int i = 0; i < SERVER_COUNT; i++)
+        for (int i = 0; i < SERVER_COUNT; i++) {
+            if (i == get_context()->get_id())
+                continue;
             replica_send_message(msg, i);
+        }
         return;
     }
     replica_msg_type_t type = msg.type;
@@ -191,13 +194,13 @@ void Network::replica_send_message(replica_msg_wrapper_t &msg, int id) {
         vote_rpc_msg->set_last_log_index(vote_rpc->last_log_index);
         vote_rpc_msg->set_last_log_term(vote_rpc->last_log_term);
         send_msg.set_allocated_request_vote_rpc_msg(vote_rpc_msg);
-    } if (type == REQ_VOTE_RPL) {
+    } else if (type == REQ_VOTE_RPL) {
         auto vote_rpl = (request_vote_reply_t*) msg.payload;
         auto vote_rpl_msg = new request_vote_reply_msg_t();
         vote_rpl_msg->set_term(vote_rpl->term);
         vote_rpl_msg->set_vote_granted(vote_rpl->vote_granted);
         send_msg.set_allocated_request_vote_reply_msg(vote_rpl_msg);
-    } if (type == APP_ENTR_RPC) {
+    } else if (type == APP_ENTR_RPC) {
         auto append_rpc = (append_entry_rpc_t*) msg.payload;
         auto append_rpc_msg = new append_entry_rpc_msg_t();
         append_rpc_msg->set_term(append_rpc->term);
@@ -223,7 +226,7 @@ void Network::replica_send_message(replica_msg_wrapper_t &msg, int id) {
             block_msg->set_index(block.get_index());
         }
         send_msg.set_allocated_append_entry_rpc_msg(append_rpc_msg);
-    } if (type == APP_ENTR_RPL) {
+    } else if (type == APP_ENTR_RPL) {
         auto append_reply = (append_entry_reply_t*) msg.payload;
         auto append_reply_msg = new append_entry_reply_msg_t();
         append_reply_msg->set_term(append_reply->term);
@@ -231,7 +234,7 @@ void Network::replica_send_message(replica_msg_wrapper_t &msg, int id) {
         append_reply_msg->set_success(append_reply->success);
         send_msg.set_allocated_append_entry_reply_msg(append_reply_msg);
     } else {
-        std::cout << "[Network::replica_recv_handler] try to send unknown type." << std::endl;
+        std::cout << "[Network::replica_send_message] try to send unknown type." << std::endl;
         return;
     }
     
@@ -276,7 +279,7 @@ size_t Network::replica_get_message_count() {
 void Network::setup_client_server() {
     client_server_fd = socket(AF_INET, SOCK_STREAM, 0);
     int flag;
-    if (setsockopt(client_server_fd, SOL_SOCKET, SO_REUSEADDR, &flag, sizeof(flag)) < 0) {
+    if (setsockopt(client_server_fd, SOL_SOCKET, SO_REUSEPORT, &flag, sizeof(flag)) < 0) {
         std::cerr << "[setup_client_server] Failed to set the socket options." << std::endl;
         exit(1);
     }
