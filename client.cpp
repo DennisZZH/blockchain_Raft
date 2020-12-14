@@ -4,12 +4,23 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <sstream>
 #include "client.h"
 #include "message.h"
 #include "Msg.pb.h"
 using namespace RaftClient;
 
 #define DEBUG_MODE
+
+const char* usage = 
+"Run the program by typing ./client <client_id> where client_id is within range [0, 2].\n"
+"Commands: \n"
+"transfer: [transfer or t or T] <recv_id> <amount>\n"
+"balance: [balance or b or B]\n";
+
+inline void print_usage() {
+    printf("%s\n", usage);
+}
 
 Client::Client(int id) {
     client_id = id;
@@ -22,6 +33,28 @@ Client::~Client() {
 
 Network::Network(Client *client) {
     this->client = client;
+
+    // bind the three sockets connecting to servers to dedicated ports
+    for (int i = 0; i < SERVER_COUNT; i++) {
+        servers[i].sock = socket(AF_INET, SOCK_STREAM, 0);
+        int status;
+        if (setsockopt(servers[i].sock, SOL_SOCKET, SO_REUSEPORT, &status, sizeof(status)) < 0) {
+            std::cerr << "[Network::conn_handler] failed to set the socket options." << std::endl;
+            exit(1);
+        }
+
+        sockaddr_in self_addr = {0}; 
+        self_addr.sin_family = AF_INET;
+        self_addr.sin_addr.s_addr = inet_addr(CLIENT_IP);
+        self_addr.sin_port = htons(CLIENT_BASE_PORT + get_client()->get_client_id() * CLIENT_PORT_MULT + i);
+
+        if (bind(servers[i].sock, (sockaddr*) &self_addr, sizeof(self_addr)) < 0) {
+            std::cerr << "[Network::conn_handler] failed to bind the self port." << std::endl;
+            close(servers[i].sock);
+            exit(1);
+        }
+    }
+
     conn_thread = std::thread(&Network::conn_handler, this);
 }
 
@@ -51,31 +84,7 @@ void Network::conn_handler() {
             std::cout << "[Network::conn_handler] connecting to server: " << servers[i].id << std::endl;
             #endif
 
-            int s = socket(AF_INET, SOCK_STREAM, 0);
-            int status = 0;
-            
-            if (setsockopt(s, SOL_SOCKET, SO_REUSEPORT, &status, sizeof(status)) < 0) {
-                #ifdef DEBUG_MODE
-                std::cerr << "[Network::conn_handler] failed to set the socket options." << std::endl;
-                #endif
-                close(s);
-                continue;
-            }
-
-            // bind client id to a specific port so that the server
-            // side can identity the client id based on the client port
-            sockaddr_in self_addr = {0}; 
-            self_addr.sin_family = AF_INET;
-            self_addr.sin_addr.s_addr = inet_addr(CLIENT_IP);
-            self_addr.sin_port = htons(CLIENT_BASE_PORT + get_client()->get_client_id());
-
-            if (bind(s, (sockaddr*) &self_addr, sizeof(self_addr)) < 0) {
-                #ifdef DEBUG_MODE
-                std::cerr << "[Network::conn_handler] failed to bind the self port." << std::endl;
-                #endif
-                close(s);
-                continue;
-            }
+            int s = servers[i].sock;
 
             sockaddr_in addr = {0};
             addr.sin_family = AF_INET;
@@ -86,7 +95,6 @@ void Network::conn_handler() {
                 #ifdef DEBUG_MODE
                 std::cerr << "[Network::conn_handler] Failed to connect the server " << servers[i].id << std::endl;
                 #endif
-                close(s);
                 continue;
             }
             
@@ -101,19 +109,18 @@ void Network::conn_handler() {
             }
 
             // need to update server information so that the listening thread can use it
-            servers[i].sock = s;
             servers[i].connected = true;
             servers[i].recv_task = new std::thread(&RaftClient::Network::recv_handler, this, i);
         }
         // sleep the current thread after looping for one round
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        std::this_thread::sleep_for(std::chrono::milliseconds(5000));
     }
 }
 
 void Network::recv_handler(int index) {
     const int server_id = servers[index].id;
     const int server_sock = servers[index].sock;
-    
+    std::cout << "[Network::recv_handler] start listening server: " << servers[index].id << "'s messages" << std::endl;
     while (servers[server_id].connected) {
         if (!servers[index].connected)
             break;
@@ -162,11 +169,22 @@ void Network::recv_handler(int index) {
         // then need to save to the response queue
         auto response = new response_t();
         response->type = type;
+        response->request_id = response_msg.request_id();
+        response->succeed = response_msg.succeed();
+        if (type == TRANSACTION_RESPONSE) {
+            // do nothing
+        } else if (type == BALANCE_RESPONSE) {
+            response->balance = response_msg.balance();
+        } else {
+            std::cout << "[Network::recv_handler] received unknown type. discarded!" << std::endl;
+            delete response;
+            continue;
+        }
+        response_queue_push(response);
         std::cout << "[Network::recv_handler] message received and saved!" << std::endl;
     }
 
     std::cout << "[Network::recv_handler] connection with server: " << server_id << " is lost." << std::endl;
-    close(server_sock);
     servers[index].connected = false;
 }
 
@@ -194,7 +212,6 @@ response_t* Network::response_queue_pop() {
 size_t Network::response_queue_get_count() {
     return response_queue.size();
 }
-
 
 /**
  * @brief send message to estimated leader
@@ -236,10 +253,65 @@ void Network::send_balance(uint64_t req_id) {
     send_message(request_msg);
 }
 
-
-
 int main (int argc, char* argv[]) {
+    if (argc != 2) {
+        print_usage();
+        exit(1);
+    }
     
+    int client_id = atoi(argv[1]);
+    if (client_id < 0 || client_id >= CLIENT_COUNT) {
+        std::cout << "Your input cid is out of the accepted range." << std::endl;
+        print_usage();
+        exit(1);
+    }
+    
+    Client client = Client(client_id);
+
+    std::string input;
+    while(true) {
+        input.clear();
+        std::getline(std::cin, input);
+        std::stringstream ss(input);
+        std::vector<std::string> args;
+        while (ss.good()) {
+            std::string arg = "";
+            ss >> arg;
+            args.push_back(arg);
+        }
+        
+        std::string &cmd = args[0];
+        if (cmd.compare("transfer") == 0 || cmd.compare("t") == 0 || cmd.compare("T") == 0) 
+        {
+            if (args.size() != 3) {
+                std::cout << "wrong format." << std::endl;
+                std::cout << "transfer <recv_id> <amount>" << std::endl;
+                continue;
+            }
+            uint32_t recv_id = atoi(args[1].c_str());
+            float amount = atof(args[2].c_str()); 
+            client.get_network()->send_transaction(recv_id, amount, 0);
+        } 
+        else if (cmd.compare("balance") == 0 || cmd.compare("b") == 0 || cmd.compare("B") == 0) 
+        {
+            client.get_network()->send_balance(0);
+        }
+        else if (cmd.compare("p") == 0) // for debug only
+        {
+            while(client.get_network()->response_queue_get_count()) {
+                auto res = client.get_network()->response_queue_pop();
+                auto type = res->type;
+                if (type == TRANSACTION_RESPONSE) {
+                    std::cout << "type: TRANSACTION_RESPONSE" << std::endl;
+                    std::cout << "request id: " << res->request_id << " succeed: " << res->succeed << std::endl;
+                } else if (type == BALANCE_RESPONSE) {
+                    std::cout << "type: BALANCE_RESPONSE" << std::endl;
+                    std::cout << "request id: " << res->request_id << " succeed: " << res->succeed << " balance: " << res->balance << std::endl;
+                }
+                std::cout << "--------------------------------------------" << std::endl;
+            }
+        }
+    }
     return 0;
 }
 
