@@ -162,6 +162,18 @@ void Network::recv_handler(int index) {
         // then need to save to the response queue
         auto response = new response_t();
         response->type = type;
+        response->request_id = response_msg.request_id();
+        response->succeed = response_msg.succeed();
+        if (type == TRANSACTION_RESPONSE) {
+            // do nothing
+        } else if (type == BALANCE_RESPONSE) {
+            response->balance = response_msg.balance();
+        } else {
+            std::cout << "[Network::recv_handler] received unknown type. discarded!" << std::endl;
+            delete response;
+            continue;
+        }
+        response_queue_push(response);
         std::cout << "[Network::recv_handler] message received and saved!" << std::endl;
     }
 

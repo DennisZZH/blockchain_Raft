@@ -12,7 +12,7 @@ message response_msg_t {
     required uint32 type = 1;
     required uint64 request_id = 2;
     required bool succeed = 3;
-    optional uint32 balance = 4;
+    optional float balance = 4;
     optional uint32 leader_id = 5;
 }
 

@@ -21,7 +21,7 @@ struct response_t {
     message_type_t type;
     uint64_t request_id;
     bool succeed;
-    uint32_t balance;
+    float balance;
     uint32_t leader_id;
 };
 
