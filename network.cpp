@@ -193,7 +193,7 @@ void Network::replica_send_message(replica_msg_wrapper_t &msg, int id) {
     if (type == REQ_VOTE_RPC) {
         auto vote_rpc = (request_vote_rpc_t*) msg.payload;
         auto vote_rpc_msg = new request_vote_rpc_msg_t();
-        vote_rpc_msg->set_term(vote_rpc->last_log_term);
+        vote_rpc_msg->set_term(vote_rpc->term);
         vote_rpc_msg->set_candidate_id(vote_rpc->candidate_id);
         vote_rpc_msg->set_last_log_index(vote_rpc->last_log_index);
         vote_rpc_msg->set_last_log_term(vote_rpc->last_log_term);

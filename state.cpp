@@ -77,7 +77,7 @@ void CandidateState::run() {
             auto vote_reply = (request_vote_reply_t*)msg.payload;
             // If the reply term is higher then the current term, it means I am slow so I need to step down.
             // REVIEW: Step down to be what, follower?
-            std::cout << "[State::CandidateState::run] received vote reply." << std::endl;
+            std::cout << "[State::CandidateState::run] received vote: " << vote_reply->vote_granted << " term: " << vote_reply->term << std::endl;
             if (vote_reply->term > get_context()->get_curr_term()) {
                 std::cout<<"[State::CandidateState::run] Step down to Follower State!"<<std::endl;
                 get_context()->set_state(new FollowerState(get_context()));
@@ -224,6 +224,7 @@ void FollowerState::run() {
             request_vote_reply_t reply;
             reply.vote_granted = false;
             
+            std::cout<<"[State::FollowerState::run] received vote rpc for" << vote_rpc->candidate_id << " with term: " << vote_rpc->term << std::endl;
             // Discover larger term
             if (vote_rpc->term > get_context()->get_curr_term()) {
                 get_context()->set_curr_term(vote_rpc->term);
