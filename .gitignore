@@ -6,6 +6,8 @@ starter
 blockchain_test
 Msg.pb*
 *.dSYM
+.vscode/c_cpp_properties.json
+.vscode/settings.json
 
 # Prerequisites
 *.d
@@ -40,5 +42,5 @@ Msg.pb*
 *.out
 *.app
 
-.vscode
+# .vscode
 .DS_Store
