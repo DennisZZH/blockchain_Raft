@@ -402,7 +402,7 @@ void Network::client_recv_handler(int client_id) {
     // The client connection is lost. Need to free the dynamically allocated client information.
     std::cout << "[Network::client_recv_handler] disconnected from client: " << client_id << std::endl;
     clients[client_id].connected = false;
-    
+    close(sock);
 }
 
 /**
