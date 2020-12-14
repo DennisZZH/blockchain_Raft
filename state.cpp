@@ -30,7 +30,7 @@ void CandidateState::run() {
     send_msg.type = REQ_VOTE_RPC;
     send_msg.payload = (void*) &rpc;
     // Send the message to other servers
-    std::cout<<"[State::CandidateState::run] Sending out requestVotePRCs!"<<std::endl;
+    //std::cout<<"[State::CandidateState::run] Sending out requestVotePRCs!"<<std::endl;
     network->replica_send_message(send_msg);
      
     replica_msg_wrapper_t msg;
@@ -62,7 +62,7 @@ void CandidateState::run() {
         network->replica_pop_message(msg);
 
         if (msg.type == REQ_VOTE_RPC) {
-            std::cout<<"[State::CandidateState::run] Received a requestVoteRPC!"<<std::endl;
+            //std::cout<<"[State::CandidateState::run] Received a requestVoteRPC!"<<std::endl;
             auto vote_rpc = (request_vote_rpc_t*)msg.payload;
             // If the term is lower or equal to the current term, then ignore.
             // If the term is higher than mine, then I should step down
@@ -72,7 +72,7 @@ void CandidateState::run() {
                 goto exit;
             }
         } else if (msg.type == REQ_VOTE_RPL) {
-             std::cout<<"[State::CandidateState::run] Recv a requestVoteRPC Reply!"<<std::endl;
+             //std::cout<<"[State::CandidateState::run] Recv a requestVoteRPC Reply!"<<std::endl;
             auto vote_reply = (request_vote_reply_t*)msg.payload;
             // If the reply term is higher then the current term, it means I am slow so I need to step down.
             // REVIEW: Step down to be what, follower?
@@ -90,7 +90,7 @@ void CandidateState::run() {
                 }
             }
         } else if (msg.type == APP_ENTR_RPC) {
-            std::cout<<"[State::CandidateState::run] Received a appendEntryRPC!"<<std::endl;
+            //std::cout<<"[State::CandidateState::run] Received a appendEntryRPC!"<<std::endl;
             auto append_rpc = (append_entry_rpc_t*)msg.payload;
             // REVIEW: The new elected leader should have the same or larger term. Ignore if smaller
             // The new leader should send a empty heartbeat, so shouldn't need to append.
@@ -136,7 +136,7 @@ void FollowerState::run() {
 
         // Check if any client wrongly send request to a follower
         if (network->client_get_request_count() != 0) {
-            std::cout<<"[State::FollowerState::run] Recv wrong Request from Client, Redirecting!"<<std::endl;
+            //std::cout<<"[State::FollowerState::run] Recv wrong Request from Client, Redirecting!"<<std::endl;
             request_t* request = network->client_pop_request();
             response_t response;
             response.type = LEADER_CHANGE;
@@ -162,7 +162,7 @@ void FollowerState::run() {
 
         // Handle received RPC
         if (msg.type == APP_ENTR_RPC) {
-             std::cout<<"[State::FollowerState::run] Received a appendEntryRPC!"<<std::endl;
+            // std::cout<<"[State::FollowerState::run] Received a appendEntryRPC!"<<std::endl;
             auto append_rpc = (append_entry_rpc_t*) msg.payload;
             append_entry_reply_t reply;
             
@@ -181,7 +181,7 @@ void FollowerState::run() {
                 last_time = std::chrono::system_clock::now();
                 // If the append RPC is just a heartbeat.
                 if (append_rpc->entries.size() == 0) {
-                      std::cout<<"[State::FollowerState::run] This appendEntryRPC is a HeartBeat!"<<std::endl;
+                     // std::cout<<"[State::FollowerState::run] This appendEntryRPC is a HeartBeat!"<<std::endl;
                     // Comfirm leader
                     get_context()->set_curr_leader(append_rpc->leader_id);
                     // Advance balance table with newly committed entries (Also update committed index of the blockchain)
@@ -191,7 +191,7 @@ void FollowerState::run() {
                 }
                 // If the append RPC contains log entries
                 else {
-                      std::cout<<"[State::FollowerState::run] This appendEntryRPC contains Logs!"<<std::endl;
+                     // std::cout<<"[State::FollowerState::run] This appendEntryRPC contains Logs!"<<std::endl;
                     // Return failure if log doesn't contain an entry at prevLogIndex whose term matches prevLogTerm
                     if (get_context()->get_bc_log().get_last_index() != append_rpc->prev_log_index
                         || get_context()->get_bc_log().get_last_term() != append_rpc->prev_log_term) {
@@ -217,7 +217,7 @@ void FollowerState::run() {
             network->replica_send_message(reply_msg, append_rpc->leader_id);          
         } 
         else if (msg.type == REQ_VOTE_RPC) {
-            std::cout<<"[State::FollowerState::run] Received a requestVoteRPC!"<<std::endl;
+            //std::cout<<"[State::FollowerState::run] Received a requestVoteRPC!"<<std::endl;
             auto vote_rpc = (request_vote_rpc_t*) msg.payload;
             request_vote_reply_t reply;
             reply.vote_granted = false;
@@ -312,7 +312,7 @@ void LeaderState::run() {
         }
 
         // Fetch a client request, start the protocol
-         std::cout<<"[State::LeaderState::run] Recv a Client Request!"<<std::endl;
+        // std::cout<<"[State::LeaderState::run] Recv a Client Request!"<<std::endl;
         msg_ptr = network->client_pop_request();
 
         // Get current block info, after append new block, current block will become prev block
@@ -361,7 +361,7 @@ void LeaderState::run() {
             replica_msg_wrapper_t msg;
             network->replica_pop_message(msg);
             if (msg.type == REQ_VOTE_RPC) {
-                 std::cout<<"[State::LeaderState::run] Recv a requestVoteRPC!"<<std::endl;
+                 //std::cout<<"[State::LeaderState::run] Recv a requestVoteRPC!"<<std::endl;
                 request_vote_rpc_t* vote_rpc = (request_vote_rpc_t*) msg.payload;
                 if (vote_rpc->term > get_context()->get_curr_term()) {
                     // Step down
@@ -370,7 +370,7 @@ void LeaderState::run() {
                 }
             }
             else if (msg.type == APP_ENTR_RPC) {
-                std::cout<<"[State::LeaderState::run] Recv a appendEntryRPC!"<<std::endl;
+                //std::cout<<"[State::LeaderState::run] Recv a appendEntryRPC!"<<std::endl;
                 append_entry_rpc_t* append_rpc = (append_entry_rpc_t*) msg.payload;
                 if (append_rpc->term > get_context()->get_curr_term()) {
                     // Step down
@@ -379,7 +379,7 @@ void LeaderState::run() {
                 }
             }
             else if (msg.type == APP_ENTR_RPL) {
-                std::cout<<"[State::LeaderState::run] Recv a requestVoteRPC Reply!"<<std::endl;
+                //std::cout<<"[State::LeaderState::run] Recv a requestVoteRPC Reply!"<<std::endl;
                 append_entry_reply_t* reply = (append_entry_reply_t*) msg.payload;
                 if (reply->term == get_context()->get_curr_term()) {
                     if (reply->success == true) {
