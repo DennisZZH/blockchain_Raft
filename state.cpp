@@ -23,7 +23,7 @@ void CandidateState::run() {
     request_vote_rpc_t rpc;
     rpc.last_log_index = get_context()->get_bc_log().get_last_index(); 
     rpc.last_log_term = get_context()->get_bc_log().get_last_term();
-    
+    rpc.candidate_id = get_context()->get_id();
     rpc.term = term;
     
     replica_msg_wrapper_t send_msg;
