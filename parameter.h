@@ -36,4 +36,5 @@
 
 // The length of digits of blockchain's committed index
 // ie. digit len = 4 means committed index range from 0 to 9999
+// backup file
 #define NUM_DIGITS_COMMITTED_INDEX 4

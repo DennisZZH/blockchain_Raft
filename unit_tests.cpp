@@ -31,7 +31,7 @@ void run_test_bc() {
     std::cout << "Block at index 0 : " << endl;
     bc1.get_block_by_index(0).print_block();
     std::cout << "Block at tail : " << endl;
-    bc1.get_last_block().print_block();
+    // bc1.get_last_block().print_block();
 
     // Additional test
     Blockchain bc1b;

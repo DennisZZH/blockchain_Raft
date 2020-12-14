@@ -25,9 +25,11 @@ class Transaction {
         float get_amount() {return amount;}
         bool get_bal_txn_flag() {return bal_txn_flag;}
 
+        // review: why is this needed
         std::string serialize_transaction() {
             return std::to_string(sender_id) + "-" + std::to_string(recver_id) + "-" + std::to_string(amount);
         }
+
         void print_transaction() {
             std::string flag_str;
             if (bal_txn_flag) flag_str = "Balance";
@@ -129,6 +131,17 @@ class Blockchain {
         *   Precondition: Server need to provide the filename corresponding to its permanent storage on disk. That file starts with the committed index on the first line, then a serialized block on each line.
         *   Postcondistion: A blockchain is initialized on memory from the file. Internally, each block always only contain 1 transaction.
         */
+
+        /*
+        *   note: blockchain saved format     
+        *   line# 1: commited index value (total length BACKUP_COMMIX_INDEX_RESERVE_BYTES)
+        *   line# 2: blockchain transaction 1
+        *   line# 3: blockchain transaction 2
+        *   line# n: ...
+        * 
+        *   note: each transaction has a flag to indicate either it's a balance or blockchain
+        *   [4 + 2] =  [-/+][xxxx][\n]
+        */
         
         Blockchain() {
         }
@@ -142,21 +155,16 @@ class Blockchain {
             std::ifstream infile;
             infile.open(filename);
 
-            std::string block_str, line;
+            std::string line;
             if (infile.is_open()) {
-
                 getline(infile, line);
-                int index_val = 0;
-                for (int i = 0; i < line.length(); i++) {
-                    index_val *= 10;
-                    index_val += line[i] - '0';
-                }
-                committed_index = index_val;
+                // [+0231\n]
+                committed_index = stoi(line);
 
+                // note: read the rest of the lines and parse each of them to transactions
                 while (getline (infile, line)){
-                    block_str = line;
                     block_msg_t block_msg;
-                    block_msg.ParseFromString(block_str);
+                    block_msg.ParseFromString(line);
                     Block blo;
                     Transaction txn;
                     txn.set_sender_id(block_msg.txn().sender_id());
@@ -170,9 +178,8 @@ class Blockchain {
                     blo.set_index(block_msg.index());
                     blocks.push_back(blo);
                 }
-            }
-            else {
-                std::cerr << "Error: blockchain.h : parse_file_to_bc(): Unable to open file!" << std::endl;
+            } else {
+                std::cerr << "[blockchain::parse_file_to_bc] unable to open file." << std::endl;
                 exit(0);
             }
           
@@ -184,10 +191,14 @@ class Blockchain {
 
             block_msg_t block_msg;
             txn_msg_t* txn_msg_ptr = new txn_msg_t();
+            
+            // because each block just have one transaction
+            // so just parse the transaction and add to the block
             txn_msg_ptr->set_sender_id(newblo.get_txn().get_sender_id());
             txn_msg_ptr->set_recver_id(newblo.get_txn().get_recver_id());
             txn_msg_ptr->set_amount(newblo.get_txn().get_amount());
             txn_msg_ptr->set_bal_txn_flag(newblo.get_txn().get_bal_txn_flag());
+
             block_msg.set_allocated_txn(txn_msg_ptr);
             block_msg.set_term(newblo.get_term());
             block_msg.set_phash(newblo.get_phash());
@@ -215,21 +226,65 @@ class Blockchain {
             write_block_to_file(newblo);
         }
 
-        void set_committed_index(int new_index) {
-            committed_index = new_index;
+        void set_committed_index(int index) {
             // Update the committed index on disk
-            std::string index_str = "";
-            for (int i = 0; i < NUM_DIGITS_COMMITTED_INDEX; i++) {
-                int r = new_index % 10;
-                new_index /= 10;
-                index_str = std::to_string(r) + index_str;
+            if (index < -1) {
+                std::cerr << "[blockchain::set_committed_index] invalid index number. input index value: " << index << std::endl;
+                return;
             }
-            FILE *pFile = fopen(filename.c_str(), "r+");
-            fseek(pFile, 0, SEEK_SET);
-            fputs(index_str.c_str(), pFile);
-            fclose(pFile);
+            
+            std::string line;
+            std::fstream file;
+            file.open(filename, std::ios::app);
+            // move cursor to 0 and try to read the first line first
+            // to make sure the file is not corrupted.
+            file.seekp(0);
+            getline(file, line);
+            int curr_committed_index;
+            try {
+                curr_committed_index = std::stoi(line);
+            } catch (...) {
+                std::cerr << "[blockchain::set_committed_index] failed to read the current commited index. ";
+                std::cerr << "file corrupted." << std::endl;
+                file.close();
+                exit(1);
+            }
+            if (index < curr_committed_index) {
+                std::cerr << "[blockchain::set_committed_index] trying to commit a index that is smaller than the current committed index." << std::endl;
+                file.close();
+                return;
+            }
+            
+            this->committed_index = index;
+            // when saving to the file, will take 
+            // allocate BACKUP_COMMIX_INDEX_RESERVE_BYTES + 2 bytes, 1 extra for sign, 1 extra for \n.
+            char committed_index_str[NUM_DIGITS_COMMITTED_INDEX + 2] = {'0'};
+            if (index < 0) {
+                committed_index_str[0] = '-';
+            } else {
+                committed_index_str[0] = '+';
+            }
+            std::string index_string = std::to_string(abs(index));
+            if (index_string.size() > NUM_DIGITS_COMMITTED_INDEX) {
+                std::cerr << "[blockchain::set_committed_index] committed index has too many digits. digits count: " << index_string.size() << std::endl;
+                file.close();
+                return;
+            }
+            int first_char_offset = 1 + NUM_DIGITS_COMMITTED_INDEX - index_string.size();
+            strcpy(committed_index_str + first_char_offset, index_string.c_str());
+            committed_index_str[NUM_DIGITS_COMMITTED_INDEX + 1] = '\n';
+
+            file.seekp(0);
+            file.write(committed_index_str, sizeof(committed_index_str));
+            file.close();
         }
 
+        /**
+         * @brief the erase will include the block specified by the index.
+         * 
+         * @param index 
+         * @param ref 
+         */
         void clean_up_blocks(int index, std::vector<Block> ref) {
             // Leader clean up follower's logs up to index
             // Replace it with ref (In the case that no cleaning required, just append the new entries)
@@ -243,14 +298,32 @@ class Blockchain {
         void write_bc_to_file() {
             std::ofstream outfile(filename, std::ios::trunc);
             
-            int idx = committed_index;
-            std::string index_str = "";
-            for (int i = 0; i < NUM_DIGITS_COMMITTED_INDEX; i++) {
-                int r = idx % 10;
-                idx /= 10;
-                index_str = std::to_string(r) + index_str;
+            // int idx = committed_index;
+            // std::string index_str = "";
+            // for (int i = 0; i < NUM_DIGITS_COMMITTED_INDEX; i++) {
+            //     int r = idx % 10;
+            //     idx /= 10;
+            //     index_str = std::to_string(r) + index_str;
+            // }
+            // outfile << index_str << std::endl;
+            int index = committed_index;
+            char committed_index_str[NUM_DIGITS_COMMITTED_INDEX + 2] = {'0'};
+            if (index < 0) {
+                committed_index_str[0] = '-';
+            } else {
+                committed_index_str[0] = '+';
             }
-            outfile << index_str << std::endl;
+
+            std::string index_string = std::to_string(abs(index));
+            if (index_string.size() > NUM_DIGITS_COMMITTED_INDEX) {
+                std::cerr << "[blockchain::set_committed_index] committed index has too many digits. digits count: " << index_string.size() << std::endl;
+                outfile.close();
+                exit(1);
+            }
+
+            int first_char_offset = 1 + NUM_DIGITS_COMMITTED_INDEX - index_string.size();
+            strcpy(committed_index_str + first_char_offset, index_string.c_str());
+            committed_index_str[NUM_DIGITS_COMMITTED_INDEX + 1] = '\n';
             
             outfile.close();
 
@@ -262,7 +335,7 @@ class Blockchain {
 
         Block& get_block_by_index(int index) {
             if (index < 0 || index >= blocks.size()) {
-                std::cerr << "Error: Blockchain: get_block_by_index: invalid index!" << std::endl;
+                std::cerr << "[blockchain::get_block_by_index] error: invalid index!" << std::endl;
                 exit(0);
             }
             return blocks[index];
@@ -275,18 +348,14 @@ class Blockchain {
             if (blocks.size() == 0) {
                 return 0;
             }
-            else {
-                return blocks.back().get_term();
-            }
+            return blocks.back().get_term();
         }
 
         int get_last_index() {
             if (blocks.size() == 0) {
                 return -1;
             }
-            else {
-                return blocks.back().get_index();
-            }
+            return blocks.back().get_index();
         }
        
         void print_block_chain(){

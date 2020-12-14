@@ -440,7 +440,7 @@ void LeaderState::run() {
         response.succeed = true;
         response.leader_id = get_context()->get_id();
         response.balance = get_context()->get_bal_tab().get_balance(msg_ptr->client_id);
-        std::cout<<"[State::LeaderState::run] Reply to Client!"<<std::endl;
+        std::cout<<"[State::LeaderState::run] reply to client. balance: " << response.balance <<std::endl;
         network->client_send_message(response, msg_ptr->client_id);
 
         // Free msg ptr and payload

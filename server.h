@@ -56,6 +56,6 @@ public:
     void set_curr_term(term_t newterm) {curr_term = newterm;}
     void clear_voted_candidate() {voted_candidate = NULL_CANDIDATE_ID;};                       
     void set_voted_candidate(int candidate_id) {voted_candidate = candidate_id;}
-    void update_bal_tab_and_committed_index(uint32_t new_index);
+    void update_bal_tab_and_committed_index(int new_index);
     
 };

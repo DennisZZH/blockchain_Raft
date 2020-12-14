@@ -3,11 +3,15 @@ mesh
 client
 server
 starter
+test
 blockchain_test
+*.txt
 Msg.pb*
 *.dSYM
 .vscode/c_cpp_properties.json
 .vscode/settings.json
+code-review.csv
+code-review.html
 
 # Prerequisites
 *.d
