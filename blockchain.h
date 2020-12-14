@@ -123,7 +123,7 @@ class Blockchain {
         */
         
         Blockchain() {
-            committed_index = 0;
+            committed_index = -1;
         }
 
         void load_file(std::string fname) {
@@ -251,7 +251,13 @@ class Blockchain {
 
         }
 
-        Block& get_block_by_index(uint32_t index) {return blocks[index];};
+        Block& get_block_by_index(uint32_t index) {
+            if (index < 0 || index >= blocks.size()) {
+                std::cerr << "Error: Blockchain: get_block_by_index: invalid index!" << std::endl;
+            }
+            return blocks[index];
+        }
+        
         uint32_t get_blockchain_length() {return blocks.size();};
         uint32_t get_committed_index() {return committed_index;};
         Block& get_last_block() {return blocks.back();};

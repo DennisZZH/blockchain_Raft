@@ -150,7 +150,7 @@ void FollowerState::run() {
                     // Comfirm leader
                     get_context()->set_curr_leader(append_rpc->leader_id);
                     // Advance balance table with newly committed entries (Also update committed index of the blockchain)
-                    get_context()->update_bal_tab(append_rpc->commit_index);
+                    get_context()->update_bal_tab_and_committed_index(append_rpc->commit_index);
                     reply.term = reply.term = get_context()->get_curr_term();
                     reply.success = true;
                 }
@@ -225,7 +225,8 @@ void LeaderState::send_heartbeat() {
     append_entry_rpc_t heartbeat;
     heartbeat.term = get_context()->get_curr_term();
     heartbeat.leader_id = get_context()->get_id();
-    // Heartbeat doesn't contain any log.
+    heartbeat.commit_index = get_context()->get_bc_log().get_committed_index();
+    // Heartbeat doesn't contain any log entries, prev log term or index.
     
     // Need to wrap the heartbeat with replica_msg_wrapper_t because it's the msg used by the network.
     replica_msg_wrapper_t msg;
@@ -243,13 +244,14 @@ void LeaderState::run() {
     Network* network = get_context()->get_network();
 
     // Initialize nextIndex for each replica to last log index + 1
-    int last_log_index = get_context()->get_bc_log().get_last_block().get_index();
-    for (int i = 0; i < CLIENT_COUNT; i++) {
+    int last_log_index = get_context()->get_bc_log().get_blockchain_length() - 1;
+    for (int i = 0; i < SERVER_COUNT; i++) {
         nextIndex[i] = last_log_index + 1;
     }
     // Send the initial heartbeat to all; Declear the fact the I am elected as leader
     send_heartbeat();
 
+    request_t *msg_ptr;
     while (true) {
         auto curr_time = std::chrono::system_clock::now();
         auto dt = curr_time - last_heartbeat_time;
@@ -266,8 +268,12 @@ void LeaderState::run() {
             continue;
         }
 
-        // Fetch the client command.
-        request_t *msg_ptr =  network->client_pop_request();
+        // Fetch a client request, start the protocol
+        msg_ptr = network->client_pop_request();
+
+        // Get current block info, after append new block, current block will become prev block
+        term_t prev_log_term = get_context()->get_bc_log().get_last_block().get_term();
+        int prev_log_index = get_context()->get_bc_log().get_last_block().get_index();
         // Append new entry to local.
         if (msg_ptr->type == BALANCE_REQUEST) {
             get_context()->get_bc_log().add_transaction(get_context()->get_curr_term(), Transaction(true));
@@ -276,19 +282,119 @@ void LeaderState::run() {
             get_context()->get_bc_log().add_transaction(get_context()->get_curr_term(), *((Transaction*)msg_ptr->payload));
         }
         else {
-            // Ignore all other types of msg
+            // Ignore all other types of msg from client
+            continue;
         }
-
-        // TODO: Do the sync if the last log index >= next_index. If fails decrement next_index aand retry.
-        // TODO: Mark log commited if stored on a majority and at least one entry stored in the current term.
-        // TODO: Step down if the current term changes.
+        // Whenever last log index >= netIndex for a follower, send AppendEntries PRC with log enetries starting at nextIndex,
+        // Update nextIndex if successful
+        // If AppendEntries fails because of log inconsistency, decrement nextIndex and retry
+        for (int i = 0; i < SERVER_COUNT; i++) {
+            if (i == get_context()->get_id()) continue;
+            replica_msg_wrapper_t msg;
+            msg.type = APP_ENTR_RPC;
+            append_entry_rpc_t append_msg;
+            append_msg.term = get_context()->get_curr_term();
+            append_msg.leader_id = get_context()->get_id();
+            append_msg.prev_log_term = prev_log_term;
+            append_msg.prev_log_index = prev_log_index;
+            append_msg.commit_index = get_context()->get_bc_log().get_committed_index();
+            int next_index = nextIndex[i];
+            std::vector<Block> entries;
+            for (int j = next_index; j <= get_context()->get_bc_log().get_blockchain_length() - 1; j++) {
+                entries.push_back(get_context()->get_bc_log().get_block_by_index(j));
+            }
+            append_msg.entries = entries;
+            msg.payload = (void*) &append_msg;
+            network->replica_send_message(msg, i);
+        }
+        int num_accept = 1;
+        while (num_accept < SERVER_COUNT / 2 + 1) {
+            if (network->replica_get_message_count() == 0) {
+                std::this_thread::sleep_for(std::chrono::milliseconds(MSG_CHECK_SLEEP_MS));
+                continue;
+            }
+            replica_msg_wrapper_t msg;
+            network->replica_pop_message(msg);
+            if (msg.type == REQ_VOTE_RPC) {
+                request_vote_rpc_t* vote_rpc = (request_vote_rpc_t*) msg.payload;
+                if (vote_rpc->term > get_context()->get_curr_term()) {
+                    // Step down
+                    get_context()->set_state(new FollowerState(get_context()));
+                    goto exit;
+                }
+            }
+            else if (msg.type == APP_ENTR_RPC) {
+                append_entry_rpc_t* append_rpc = (append_entry_rpc_t*) msg.payload;
+                if (append_rpc->term > get_context()->get_curr_term()) {
+                    // Step down
+                    get_context()->set_state(new FollowerState(get_context()));
+                    goto exit;
+                }
+            }
+            else if (msg.type == APP_ENTR_RPL) {
+                append_entry_reply_t* reply = (append_entry_reply_t*) msg.payload;
+                if (reply->term == get_context()->get_curr_term()) {
+                    if (reply->success == true) {
+                        // Append entry succeed
+                        num_accept++;
+                        // TODO： nextIndex[reply.id] = get_context()->get_bc_log().get_blockchain_length() - 1;
+                    }
+                    else {
+                        // Append failed due to log inconsistency, decrement nextIndex and retry
+                        // TODO
+                        // nextIndex[reply.id]--;
+                        // replica_msg_wrapper_t msg;
+                        // msg.type = APP_ENTR_RPC;
+                        // append_entry_rpc_t append_msg;
+                        // append_msg.term = get_context()->get_curr_term();
+                        // append_msg.leader_id = get_context()->get_id();
+                        // append_msg.prev_log_term = prev_log_term;
+                        // append_msg.prev_log_index = prev_log_index;
+                        // append_msg.commit_index = get_context()->get_bc_log().get_committed_index();
+                        // int next_index = nextIndex[reply.id];
+                        // std::vector<Block> entries;
+                        // for (int j = next_index; j <= get_context()->get_bc_log().get_blockchain_length() - 1; j++) {
+                        //     entries.push_back(get_context()->get_bc_log().get_block_by_index(j));
+                        // }
+                        // append_msg.entries = entries;
+                        // msg.payload = (void*) &append_msg;
+                        // network->replica_send_message(msg, reply.id);
+                    }
+                } 
+            }
+            else {
+                // Leader should ignore all other type of message
+            }
+        }
+        // Mark log committed if stored on a majority and at least one entry stored in the current term.
+        // Execute the committed txn on balacne table, Also update committed index of the blockchain
+        int curr_committed_index =  get_context()->get_bc_log().get_committed_index() + 1;
+        get_context()->update_bal_tab_and_committed_index(curr_committed_index);
+        // Reply to client
+        response_t response;
+        if (msg_ptr->type == TRANSACTION_REQUEST) {
+            response.type = TRANSACTION_RESPONSE;
+        }
+        else if (msg_ptr->type == BALANCE_REQUEST) {
+            response.type = BALANCE_RESPONSE;
+        }
+        response.request_id = msg_ptr->request_id;
+        response.succeed = true;
+        response.leader_id = get_context()->get_id();
+        response.balance = get_context()->get_bal_tab().get_balance(msg_ptr->client_id);
+        network->client_send_message(response, msg_ptr->client_id);
 
         // Free msg ptr and payload
         if (msg_ptr->payload != NULL) {
             free(msg_ptr->payload);
         }
         free(msg_ptr);
-    
     }
-    return;
+
+exit:
+    if (msg_ptr->payload != NULL) {
+        free(msg_ptr->payload);
+    }
+    free(msg_ptr);
+    return; 
 }
