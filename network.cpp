@@ -173,6 +173,10 @@ void Network::replica_recv_handler() {
 }
 
 void Network::replica_send_message(replica_msg_wrapper_t &msg, int id) {
+    if (id < -1 || id >= SERVER_COUNT) {
+        std::cout << "[Network::replica_send_message] invalid server id number." << std::endl;
+        return;
+    }
     if (id == -1) {
         for (int i = 0; i < SERVER_COUNT; i++) {
             if (i == get_context()->get_id())

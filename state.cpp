@@ -361,7 +361,7 @@ void LeaderState::run() {
             replica_msg_wrapper_t msg;
             network->replica_pop_message(msg);
             if (msg.type == REQ_VOTE_RPC) {
-                 std::cout<<"[State::LeaderState::run] Recv a requestVoteRPC!"<<std::endl;
+                std::cout<<"[State::LeaderState::run] Recv a requestVoteRPC!"<<std::endl;
                 request_vote_rpc_t* vote_rpc = (request_vote_rpc_t*) msg.payload;
                 if (vote_rpc->term > get_context()->get_curr_term()) {
                     // Step down
