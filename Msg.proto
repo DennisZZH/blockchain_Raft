@@ -30,11 +30,11 @@ message block_msg_t {
     required string phash = 2;
     required string nonce = 3;
     required txn_msg_t txn = 4;
-    required uint32 index = 5;
+    required int32 index = 5;
 }
 
 message bc_msg_t {
-    required uint32 committed_index = 1;
+    required int32 committed_index = 1;
 	repeated block_msg_t blocks = 3;
 }
 
@@ -52,7 +52,7 @@ message request_vote_rpc_msg_t {
     required uint32 candidate_id = 1;
     required uint32 term = 2;
     required uint32 last_log_term = 3;
-    required uint32 last_log_index = 4;
+    required int32 last_log_index = 4;
 }
 
 message request_vote_reply_msg_t {
@@ -64,8 +64,8 @@ message append_entry_rpc_msg_t {
     required uint32 term = 1;
     required uint32 leader_id = 2;
     required uint32 prev_log_term = 3;
-    required uint32 prev_log_index = 4;
-    required uint32 commit_index = 5;
+    required int32 prev_log_index = 4;
+    required int32 commit_index = 5;
     repeated block_msg_t entries = 6;
 }
 
