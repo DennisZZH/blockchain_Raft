@@ -14,6 +14,7 @@ void CandidateState::run() {
     // Increment the current term, and vote for myself
     term_t term = get_context()->increment_term();
     get_context()->set_voted_candidate(get_context()->get_id());
+    std::cout << "[CandidateState::run] current election tiemout: " << curr_election_timeout << std::endl;
     vote_count = 1;
 
     // Reset the election timeout timer
@@ -76,6 +77,7 @@ void CandidateState::run() {
             auto vote_reply = (request_vote_reply_t*)msg.payload;
             // If the reply term is higher then the current term, it means I am slow so I need to step down.
             // REVIEW: Step down to be what, follower?
+            std::cout << "[State::CandidateState::run] received vote reply." << std::endl;
             if (vote_reply->term > get_context()->get_curr_term()) {
                 std::cout<<"[State::CandidateState::run] Step down to Follower State!"<<std::endl;
                 get_context()->set_state(new FollowerState(get_context()));
@@ -106,7 +108,7 @@ void CandidateState::run() {
             free(msg.payload);
         }
     }
-    
+
 exit:
     if (msg.payload != NULL) {
         free(msg.payload);

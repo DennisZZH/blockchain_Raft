@@ -11,9 +11,9 @@ protected:
     uint32_t curr_election_timeout;
 
 public:
-    State(Server* context) {this->context = context;};
+    State(Server* context) {this->context = context; srand(time(NULL));};
     Server* get_context() {return context;};
-    void gen_election_timeout() {curr_election_timeout = ELECTION_TIMEOUT_MS - ELECTION_TIMEOUT_MS / 4 + rand() % (ELECTION_TIMEOUT_MS / 2);};
+    void gen_election_timeout() {curr_election_timeout = ELECTION_TIMEOUT_MS / 2 + rand() % (ELECTION_TIMEOUT_MS / 2);};
     virtual void run() {};
 };
 
