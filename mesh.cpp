@@ -2,6 +2,7 @@
 #include <arpa/inet.h>
 #include <unistd.h>
 #include "parameter.h"
+#include <sstream>
 #include "mesh.h"
 #include "raft.h"
 using namespace RaftMesh;
@@ -232,7 +233,46 @@ void Mesh::send_handler(int replica_id) {
     servers[replica_id].connected = false;
 }
 
+void Mesh::server_partition_toggle(uint32_t server_id) {
+    if (!servers[server_id].connected) {
+        std::cout << "[Mesh::server_partition_toggle] server: " << server_id << " is not connected. invalid operation." << std::endl;
+        return;
+    }
+    servers[server_id].partitioned = !servers[server_id].partitioned;
+    std::cout << "[Mesh::server_partition_toggle] server: " << server_id << " ";
+    std::cout << "partition status: " << ((servers[server_id].partitioned) ? "on" : "off") << std::endl;
+}
+
 int main(int argc, char* argv[]) {
     Mesh mesh;
-    while(true);
+    
+    std::string input;
+    while(true) {
+        input.clear();
+        std::getline(std::cin, input);
+        std::stringstream ss(input);
+        std::vector<std::string> args;
+        while (ss.good()) {
+            std::string arg = "";
+            ss >> arg;
+            args.push_back(arg);
+        }
+
+        std::string &cmd = args[0];
+        if (cmd.compare("toggle") == 0) {
+            // format: toggle <server id>
+            if (args.size() != 2) {
+                std::cout << "wrong format." << std::endl;
+                std::cout << "toggle <server_id>" << std::endl;
+                continue;
+            }
+            int server_id = atoi(args[1].c_str());
+            if (server_id < 0 || server_id >= SERVER_COUNT) {
+                std::cout << "invalid server id. please make sure it's between [0, 2]" << std::endl;
+                continue; 
+            }
+            mesh.server_partition_toggle(server_id);
+        }
+        
+    }
 }

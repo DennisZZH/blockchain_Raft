@@ -32,6 +32,8 @@ namespace RaftMesh {
         int mesh_sock = 0;
         bool is_stopped = false;
 
+        void server_partition_toggle(uint32_t server_id);
+
     private:
         std::thread wait_conn_thread;
         server_info_t servers[SERVER_COUNT] = {0};
