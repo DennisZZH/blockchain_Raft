@@ -71,6 +71,6 @@ public:
     // request related APIs
     void client_push_request(request_t* request);
     request_t* client_pop_request();
-    void client_send_message(response_t& reponse, int client_id = -1);          // Send the message to the client identified by the id. If id == -1, send to all.   
+    void client_send_message(response_t& response, int client_id = -1);          // Send the message to the client identified by the id. If id == -1, send to all.   
     size_t client_get_request_count();
 };
