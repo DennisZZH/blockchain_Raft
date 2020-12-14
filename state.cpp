@@ -43,6 +43,10 @@ void CandidateState::run() {
             get_context()->set_state(new CandidateState(get_context()));
             goto exit;
         }
+
+        // Check if any client wrongly send request to a candidate
+        // Redirect the client by sending leader id
+        // REVIEW: a candidate can't know who is leader, no need to reply
         
         // if the message buffer is empty then do nothing, waiting for another round to check.
         if (network->replica_get_message_count() == 0) {
@@ -116,6 +120,22 @@ void FollowerState::run() {
         if (ms.count() > curr_election_timeout) {
             get_context()->set_state(new CandidateState(get_context()));
             goto exit;
+        }
+
+        // Check if any client wrongly send request to a follower
+        if (network->client_get_request_count() != 0) {
+            request_t* request = network->client_pop_request();
+            response_t response;
+            response.type = LEADER_CHANGE;
+            response.leader_id = get_context()->get_curr_leader();
+            response.request_id = request->request_id;
+            response.succeed = false;
+            response.balance = -1;
+            network->client_send_message(response, request->client_id);
+            if (request->payload != NULL) {
+                free(request->payload);
+            }
+            free(request);
         }
 
         if (network->replica_get_message_count() == 0) {
