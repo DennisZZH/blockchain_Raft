@@ -8,6 +8,8 @@
 #include "client.h"
 #include "message.h"
 #include "Msg.pb.h"
+#include "parameter.h"
+
 using namespace RaftClient;
 
 #define DEBUG_MODE
@@ -33,28 +35,6 @@ Client::~Client() {
 
 Network::Network(Client *client) {
     this->client = client;
-
-    // bind the three sockets connecting to servers to dedicated ports
-    // for (int i = 0; i < SERVER_COUNT; i++) {
-    //     servers[i].sock = socket(AF_INET, SOCK_STREAM, 0);
-    //     int status;
-    //     if (setsockopt(servers[i].sock, SOL_SOCKET, SO_REUSEPORT, &status, sizeof(status)) < 0) {
-    //         std::cerr << "[Network::conn_handler] failed to set the socket options." << std::endl;
-    //         exit(1);
-    //     }
-
-    //     sockaddr_in self_addr = {0}; 
-    //     self_addr.sin_family = AF_INET;
-    //     self_addr.sin_addr.s_addr = inet_addr(CLIENT_IP);
-    //     self_addr.sin_port = htons(CLIENT_BASE_PORT + get_client()->get_client_id() * CLIENT_PORT_MULT + i);
-
-    //     if (bind(servers[i].sock, (sockaddr*) &self_addr, sizeof(self_addr)) < 0) {
-    //         std::cerr << "[Network::conn_handler] failed to bind the self port." << std::endl;
-    //         close(servers[i].sock);
-    //         exit(1);
-    //     }
-    // }
-
     conn_thread = std::thread(&Network::conn_handler, this);
 }
 
@@ -273,6 +253,26 @@ void Network::send_balance(uint64_t req_id) {
     send_message(request_msg);
 }
 
+response_t* client_wait_reply(Client* client, uint32_t timeout_ms) {
+    if (client == NULL) {
+        return NULL;
+    }
+    typedef std::chrono::system_clock sysclk;
+    auto t0 = sysclk::now();
+    while (true) {
+        if (client->get_network()->response_queue_get_count()) {
+            return client->get_network()->response_queue_pop();
+        } 
+
+        auto t1 = sysclk::now();
+        auto dt = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0);
+        if (dt.count() > timeout_ms) {
+            return NULL;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    }
+}
+
 int main (int argc, char* argv[]) {
     if (argc != 2) {
         print_usage();
@@ -309,12 +309,51 @@ int main (int argc, char* argv[]) {
                 continue;
             }
             uint32_t recv_id = atoi(args[1].c_str());
-            float amount = atof(args[2].c_str()); 
-            client.get_network()->send_transaction(recv_id, amount, 0);
+            float amount = atof(args[2].c_str());
+            uint64_t request_id = 0;
+            do {
+                client.get_network()->send_transaction(recv_id, amount, request_id);
+                auto response = client_wait_reply(&client, CLIENT_REQ_TIMEOUT_MS);
+                if (response == NULL) {
+                    std::cout << "[main] request timeout. please retry sending the request." << std::endl;
+                    break;
+                }
+                if (response->type != BALANCE_RESPONSE) {
+                    std::cout << "[main] wrong response type received. clear response queue. please retry" << std::endl;
+                    while (client.get_network()->response_queue_get_count()) {
+                        client.get_network()->response_queue_pop();
+                    }
+                    break;
+                }
+                
+                std::cout << "[main] transfer status: " << ((response->succeed) ? "succeed" : "failed") << std::endl;
+                break;
+            } while (true);
+            
         } 
         else if (cmd.compare("balance") == 0 || cmd.compare("b") == 0 || cmd.compare("B") == 0) 
         {
-            client.get_network()->send_balance(0);
+            do {
+                client.get_network()->send_balance(0);
+                auto response = client_wait_reply(&client, CLIENT_REQ_TIMEOUT_MS);
+                if (response == NULL) {
+                    std::cout << "[main] request timeout. please retry sending the request." << std::endl;
+                    break;
+                }
+                if (response->type != BALANCE_RESPONSE) {
+                    std::cout << "[main] wrong response type received. clear response queue. please retry" << std::endl;
+                    while (client.get_network()->response_queue_get_count()) {
+                        client.get_network()->response_queue_pop();
+                    }
+                    break;
+                }
+
+                std::cout << "[main] balance check status: " << ((response->succeed) ? "succeed" : "failed") << std::endl;
+                if (response->succeed) {
+                    std::cout << "[main] balance amount: " << response->balance << std::endl;
+                }
+                break;
+            } while (true);
         }
         else if (cmd.compare("p") == 0) // for debug only
         {

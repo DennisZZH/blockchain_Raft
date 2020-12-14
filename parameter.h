@@ -13,6 +13,7 @@
 #define CLIENT_IP               "127.0.0.1"
 #define CLIENT_BASE_PORT        11000
 #define CLIENT_PORT_MULT        10
+#define CLIENT_REQ_TIMEOUT_MS   5000
 
 // servers information that the client connects to
 #define SERVER_COUNT            3
