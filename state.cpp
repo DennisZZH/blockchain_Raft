@@ -269,11 +269,26 @@ void LeaderState::run() {
         // Fetch the client command.
         request_t *msg_ptr =  network->client_pop_request();
         // Append new entry to local.
-        
+        if (msg_ptr->type == BALANCE_REQUEST) {
+            get_context()->get_bc_log().add_transaction(get_context()->get_curr_term(), Transaction(true));
+        }
+        else if (msg_ptr->type == TRANSACTION_REQUEST) {
+            get_context()->get_bc_log().add_transaction(get_context()->get_curr_term(), *((Transaction*)msg_ptr->payload));
+        }
+        else {
+            // Ignore all other types of msg
+        }
 
         // TODO: Do the sync if the last log index >= next_index. If fails decrement next_index aand retry.
         // TODO: Mark log commited if stored on a majority and at least one entry stored in the current term.
         // TODO: Step down if the current term changes.
+
+        // Free msg ptr and payload
+        if (msg_ptr->payload != NULL) {
+            free(msg_ptr->payload);
+        }
+        free(msg_ptr);
+    
     }
     return;
 }
