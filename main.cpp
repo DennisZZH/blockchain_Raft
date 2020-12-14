@@ -122,11 +122,6 @@ void debug_run(int server_id) {
 }
 
 
-void normal_run(Server &s) {
-    s.run_state_machine();
-}
-
-
 int main(int argc, char* argv[]) {
     if (argc != 2) {
         print_usage();
@@ -142,7 +137,7 @@ int main(int argc, char* argv[]) {
 
     // Spawn a thread to run server state machine
     Server server(server_id);
-    std::thread server_thread(normal_run, server);
+    std::thread server_thread(&Server::run_state_machine, &server);
 
     // Main thread provide main UI interface
     std::string input;
