@@ -1,6 +1,7 @@
 #include "server.h"
 #include "network.h"
 #include "raft.h"
+#include <thread>
 
 const char* usage = "Run the program by typing ./main <server_id> where server_id is within range [0, 2].";
 inline void print_usage() {
@@ -99,6 +100,11 @@ void debug_run(int server_id) {
 }
 
 
+void normal_run(Server &s) {
+    s.run_state_machine();
+}
+
+
 int main(int argc, char* argv[]) {
     if (argc != 2) {
         print_usage();
@@ -112,5 +118,28 @@ int main(int argc, char* argv[]) {
         exit(1);
     }
 
-    debug_run(server_id);
+    // Spawn a thread to run server state machine
+    Server server(server_id);
+    std::thread server_thread(normal_run, server);
+
+    // Main thread provide main UI interface
+    std::string input;
+    while (true) {
+        std::cout << "input command: ";
+        
+        input.clear();
+        std::getline(std::cin, input);
+        std::stringstream ss(input);
+        std::vector<std::string> args;
+        while (ss.good()) {
+            std::string arg = "";
+            ss >> arg;
+            args.push_back(arg);
+        }
+
+        std::string &cmd = args[0];
+        if (cmd.compare("p")) {
+            server.print_info();
+        }
+    }
 }

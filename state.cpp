@@ -248,8 +248,9 @@ void LeaderState::run() {
     for (int i = 0; i < SERVER_COUNT; i++) {
         nextIndex[i] = last_log_index + 1;
     }
-    // Send the initial heartbeat to all; Declear the fact the I am elected as leader
+    // Send the initial heartbeat to all replicas; Declear the fact the I am elected as leader
     send_heartbeat();
+    // Send Announancement to all clients
 
     request_t *msg_ptr;
     while (true) {
