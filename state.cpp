@@ -6,6 +6,7 @@
 
 // Candidate State
 void CandidateState::run() {
+    std::cout<<"Running a Candidate State!"<<std::endl;
     Network* network = get_context()->get_network();
         
     gen_election_timeout();
@@ -105,6 +106,7 @@ exit:
 
 // Follower State
 void FollowerState::run() {
+    std::cout<<"Running a Follower State!"<<std::endl;
     Network* network = get_context()->get_network();
 
     gen_election_timeout();
@@ -261,6 +263,7 @@ void LeaderState::send_heartbeat() {
 
 
 void LeaderState::run() {
+    std::cout<<"Running a Leader State!"<<std::endl;
     Network* network = get_context()->get_network();
 
     // Initialize nextIndex for each replica to last log index + 1

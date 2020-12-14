@@ -7,10 +7,10 @@ Server::Server(int server_id) {
     // Init network
     // 1) Establish connections between server through mesh
     // 2) Establish connections between clients
+    id = server_id;
     network = new Network(this);
 
     // Init persistent state info
-    id = server_id;
     curr_term = 0;
     curr_leader = 0;    // REVIEW: 0 for default
     voted_candidate = NULL_CANDIDATE_ID;
