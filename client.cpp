@@ -58,6 +58,7 @@ void Network::conn_handler() {
                 #ifdef DEBUG_MODE
                 std::cerr << "[Network::conn_handler] failed to set the socket options." << std::endl;
                 #endif
+                close(s);
                 continue;
             }
 
@@ -72,6 +73,7 @@ void Network::conn_handler() {
                 #ifdef DEBUG_MODE
                 std::cerr << "[Network::conn_handler] failed to bind the self port." << std::endl;
                 #endif
+                close(s);
                 continue;
             }
 
@@ -84,6 +86,7 @@ void Network::conn_handler() {
                 #ifdef DEBUG_MODE
                 std::cerr << "[Network::conn_handler] Failed to connect the server " << servers[i].id << std::endl;
                 #endif
+                close(s);
                 continue;
             }
             

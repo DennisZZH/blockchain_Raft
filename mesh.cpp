@@ -136,6 +136,7 @@ void Mesh::wait_conn_handler() {
 }
 
 void Mesh::recv_handler(int replica_id) {
+    std::cout << "[Network::recv_handler] listening server: " << replica_id << " for messages." << std::endl;
     int replica_sock = servers[replica_id].sock;
     while (!is_stopped && servers[replica_id].connected) {
         COMM_HEADER_TYPE msg_bytes = 0;
@@ -214,4 +215,9 @@ void Mesh::send_handler(int replica_id) {
         delete msg;
     }
     servers[replica_id].connected = false;
+}
+
+int main(int argc, char* argv[]) {
+    
+    return 0;
 }
