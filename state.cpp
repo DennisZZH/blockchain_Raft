@@ -21,8 +21,9 @@ void CandidateState::run() {
 
     // Make the request vote rpc
     request_vote_rpc_t rpc;
-    rpc.last_log_index = get_context()->get_bc_log().get_last_block().get_index(); 
-    rpc.last_log_term = get_context()->get_bc_log().get_last_block().get_term();
+    rpc.last_log_index = get_context()->get_bc_log().get_last_index(); 
+    rpc.last_log_term = get_context()->get_bc_log().get_last_term();
+    
     rpc.term = term;
     
     replica_msg_wrapper_t send_msg;
@@ -108,7 +109,7 @@ exit:
 void FollowerState::run() {
     std::cout<<"Running a Follower State!"<<std::endl;
     Network* network = get_context()->get_network();
-
+    std::cout<<11111<<std::endl;
     gen_election_timeout();
     auto last_time = std::chrono::system_clock::now();
     auto curr_time = last_time;
@@ -119,10 +120,14 @@ void FollowerState::run() {
         auto dt = curr_time - last_time;
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(dt);
         
+         std::cout<<22222<<std::endl;
+
         if (ms.count() > curr_election_timeout) {
             get_context()->set_state(new CandidateState(get_context()));
             goto exit;
         }
+
+         std::cout<<33333<<std::endl;
 
         // Check if any client wrongly send request to a follower
         if (network->client_get_request_count() != 0) {
@@ -140,10 +145,14 @@ void FollowerState::run() {
             free(request);
         }
 
+         std::cout<<44444<<std::endl;
+
         if (network->replica_get_message_count() == 0) {
             std::this_thread::sleep_for(std::chrono::milliseconds(MSG_CHECK_SLEEP_MS));
             continue;
         }
+
+         std::cout<<55555<<std::endl;
 
         // Receiving valid RPC
         replica_msg_wrapper_t msg;
@@ -179,8 +188,8 @@ void FollowerState::run() {
                 // If the append RPC contains log entries
                 else {
                     // Return failure if log doesn't contain an entry at prevLogIndex whose term matches prevLogTerm
-                    if (get_context()->get_bc_log().get_last_block().get_index() != append_rpc->prev_log_index
-                        || get_context()->get_bc_log().get_last_block().get_term() != append_rpc->prev_log_term) {
+                    if (get_context()->get_bc_log().get_last_index() != append_rpc->prev_log_index
+                        || get_context()->get_bc_log().get_last_term() != append_rpc->prev_log_term) {
                             reply.term = reply.term = get_context()->get_curr_term();
                             reply.success = false;
                     }
@@ -214,9 +223,9 @@ void FollowerState::run() {
 
             if (vote_rpc->term == get_context()->get_curr_term()) {
                 if (get_context()->get_voted_candidate() == NULL_CANDIDATE_ID || get_context()->get_voted_candidate() == vote_rpc->candidate_id) {
-                    if (get_context()->get_bc_log().get_last_block().get_term() < vote_rpc->last_log_term
-                        || (get_context()->get_bc_log().get_last_block().get_term() == vote_rpc->last_log_term 
-                            && get_context()->get_bc_log().get_last_block().get_index() <= vote_rpc->last_log_index)) {
+                    if (get_context()->get_bc_log().get_last_term() < vote_rpc->last_log_term
+                        || (get_context()->get_bc_log().get_last_term() == vote_rpc->last_log_term 
+                            && get_context()->get_bc_log().get_last_index() <= vote_rpc->last_log_index)) {
                             // Grant vote and reset election timeout
                             reply.vote_granted = true;
                             get_context()->set_voted_candidate(vote_rpc->candidate_id);

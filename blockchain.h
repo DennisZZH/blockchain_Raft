@@ -53,20 +53,20 @@ class Block {
             nonce = find_nonce();
             // These fields need to be set after this block is added to blockchain
             phash = "NULL";
-            index = 0;
+            index = -1;
         }
 
         void set_term(uint32_t t) {term = t;}
         void set_nonce(std::string n) {nonce = n;}
         void set_txn(Transaction &T) {txn = T;}
         void set_phash(std::string h) {phash = h;}
-        void set_index(uint32_t i) {index = i;}
+        void set_index(int i) {index = i;}
 
         uint32_t get_term() {return term;}
         std::string get_phash() {return phash;}
         std::string get_nonce() {return nonce;}
         Transaction& get_txn() {return txn;}
-        uint32_t get_index() {return index;}
+        int get_index() {return index;}
     
         std::string sha256(const std::string str){
             unsigned char hash[SHA256_DIGEST_LENGTH];
@@ -102,7 +102,7 @@ class Block {
         std::string phash;      // The hash of previous block
         std::string nonce;      // The nonce of current block
         Transaction txn;        // A single transation
-        uint32_t index;
+        int index;
 
         std::string find_nonce() {
             std::string txns_hash = "";
@@ -215,7 +215,7 @@ class Blockchain {
             write_block_to_file(newblo);
         }
 
-        void set_committed_index(uint32_t new_index) {
+        void set_committed_index(int new_index) {
             committed_index = new_index;
             // Update the committed index on disk
             std::string index_str = "";
@@ -260,7 +260,7 @@ class Blockchain {
 
         }
 
-        Block& get_block_by_index(uint32_t index) {
+        Block& get_block_by_index(int index) {
             if (index < 0 || index >= blocks.size()) {
                 std::cerr << "Error: Blockchain: get_block_by_index: invalid index!" << std::endl;
             }
@@ -268,8 +268,25 @@ class Blockchain {
         }
         
         uint32_t get_blockchain_length() {return blocks.size();};
-        uint32_t get_committed_index() {return committed_index;};
-        Block& get_last_block() {return blocks.back();};
+        int get_committed_index() {return committed_index;};
+       
+        term_t get_last_term() {
+            if (blocks.size() == 0) {
+                return 0;
+            }
+            else {
+                return blocks.back().get_term();
+            }
+        }
+
+        int get_last_index() {
+            if (blocks.size() == 0) {
+                return -1;
+            }
+            else {
+                return blocks.back().get_index();
+            }
+        }
        
         void print_block_chain(){
             std::cout << "Print Block Chain: " << std::endl;
@@ -282,6 +299,6 @@ class Blockchain {
 
     private:
         std::vector<Block> blocks;
-        uint32_t committed_index;
+        int committed_index;
         std::string filename;
 };
