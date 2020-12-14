@@ -94,6 +94,28 @@ void debug_run(int server_id) {
                 }
                 std::cout << "------------------------------------------------" << std::endl;
             }
+        } else if (cmd.compare("leader") == 0) {
+            response_t response;
+            response.type = LEADER_CHANGE;
+            response.succeed = true;
+            response.leader_id = 1;
+            server.get_network()->client_send_message(response);
+        } else if (cmd.compare("trans_rpl") == 0) {
+            response_t response;
+            response.type = TRANSACTION_RESPONSE;
+            response.succeed = true;
+            response.request_id = 1;
+            server.get_network()->client_send_message(response);
+        } else if (cmd.compare("balance_rpl") == 0) {
+            response_t response;
+            response.type = BALANCE_RESPONSE;
+            response.succeed = true;
+            response.balance = 20;
+            server.get_network()->client_send_message(response);
+        } else if (cmd.compare("false_rpl") == 0) {
+            response_t response;
+            response.type = TRANSACTION_REQUEST;
+            server.get_network()->client_send_message(response);
         }
     }
 }
