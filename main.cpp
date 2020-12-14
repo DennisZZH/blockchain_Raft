@@ -157,7 +157,7 @@ int main(int argc, char* argv[]) {
         }
 
         std::string &cmd = args[0];
-        if (cmd.compare("p")) {
+        if (cmd.compare("p") == 0) {
             server.print_info();
         }
     }

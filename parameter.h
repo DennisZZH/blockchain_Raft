@@ -1,7 +1,7 @@
 #pragma once
 
 // general network parameters
-#define MESH_NETWORK_DELAY_MS   2000
+#define MESH_NETWORK_DELAY_MS   500
 
 // server client communication
 #define COMM_HEADER_TYPE        uint32_t
@@ -31,8 +31,8 @@
 
 #define NULL_CANDIDATE_ID -1
 
-#define ELECTION_TIMEOUT_MS     5000
-#define HEARTBEAT_PERIOD_MS     1000
+#define ELECTION_TIMEOUT_MS     10000
+#define HEARTBEAT_PERIOD_MS     2000
 
 // The length of digits of blockchain's committed index
 // ie. digit len = 4 means committed index range from 0 to 9999

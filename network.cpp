@@ -166,7 +166,7 @@ void Network::replica_recv_handler() {
             std::cout << "[Network::replica_recv_handler] received unknown type." << std::endl;
         }
         replica_msg_queue.push_back(wrapper);
-        std::cout << "[Network::replica_recv_handler] received and saved." << std::endl;
+        // std::cout << "[Network::replica_recv_handler] received and saved." << std::endl;
     }
     std::cout << "[Network]::replica_recv_handler] the mesh connection is lost." << std::endl;
     close(replica_socket);
