@@ -136,7 +136,9 @@ int main(int argc, char* argv[]) {
     }
 
     // Spawn a thread to run server state machine
+    std::cout<<"Constructing a server..."<<std::endl;
     Server server(server_id);
+    std::cout<<"Server State Machine running..."<<std::endl;
     std::thread server_thread(&Server::run_state_machine, &server);
 
     // Main thread provide main UI interface
