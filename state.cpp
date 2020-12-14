@@ -188,7 +188,7 @@ void FollowerState::run() {
                     get_context()->set_curr_leader(append_rpc->leader_id);
                     // Advance balance table with newly committed entries (Also update committed index of the blockchain)
                     get_context()->update_bal_tab_and_committed_index(append_rpc->commit_index);
-                    reply.term = reply.term = get_context()->get_curr_term();
+                    reply.term = get_context()->get_curr_term();
                     reply.success = true;
                 }
                 // If the append RPC contains log entries
@@ -198,7 +198,7 @@ void FollowerState::run() {
                     if (get_context()->get_bc_log().get_last_index() != append_rpc->prev_log_index
                         || get_context()->get_bc_log().get_last_term() != append_rpc->prev_log_term) {
                             std::cout<<"[State::FollowerState::run] AppendEntry failed due to log inconsistency!"<<std::endl;
-                            reply.term = reply.term = get_context()->get_curr_term();
+                            reply.term = get_context()->get_curr_term();
                             reply.success = false;
                     }
                     else {
@@ -207,7 +207,7 @@ void FollowerState::run() {
                          std::cout<<"[State::FollowerState::run] AppendEntry succeed, Fixing Log!"<<std::endl;
                         get_context()->get_bc_log().clean_up_blocks(append_rpc->prev_log_index + 1, append_rpc->entries);
                         get_context()->get_bc_log().set_committed_index(append_rpc->commit_index);
-                        reply.term = reply.term = get_context()->get_curr_term();
+                        reply.term = get_context()->get_curr_term();
                         reply.success = true;
                     }
                 }

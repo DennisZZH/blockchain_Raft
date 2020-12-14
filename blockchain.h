@@ -263,6 +263,7 @@ class Blockchain {
         Block& get_block_by_index(int index) {
             if (index < 0 || index >= blocks.size()) {
                 std::cerr << "Error: Blockchain: get_block_by_index: invalid index!" << std::endl;
+                exit(0);
             }
             return blocks[index];
         }
