@@ -54,7 +54,7 @@ void Network::conn_handler() {
             int s = socket(AF_INET, SOCK_STREAM, 0);
             int status = 0;
             
-            if (setsockopt(s, SOL_SOCKET, SO_REUSEPORT, &status, sizeof(status)) < 0) {
+            if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &status, sizeof(status)) < 0) {
                 #ifdef DEBUG_MODE
                 std::cerr << "[Network::conn_handler] failed to set the socket options." << std::endl;
                 #endif

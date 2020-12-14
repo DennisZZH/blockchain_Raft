@@ -21,6 +21,9 @@ server: $(OBJECTS) Msg.pb.cc
 client: $(BUILD_DIR)/client.o Msg.pb.cc
 	$(CC) $(CFLAGS) $(PROTOBUF_LIB) $(OPENSSL_FLAGS) $^ -o $@ -g
 
+mesh: $(BUILD_DIR)/mesh.o Msg.pb.cc
+	$(CC) $(CFLAGS) $(PROTOBUF_LIB) $(OPENSSL_FLAGS) $^ -o $@ -g
+
 blockchain_test: blockchain_test.cpp
 	$(CC) $(CFLAGS) $(OPENSSL_FLAGS) $^ -o $@
 
@@ -35,4 +38,4 @@ $(BUILD_DIR):
 	mkdir $@
 
 clean:
-	rm -rf build client blockchain_test
+	rm -rf build client mesh blockchain_test

@@ -34,7 +34,7 @@ namespace RaftMesh {
 
     private:
         std::thread wait_conn_thread;
-        server_info_t servers[SERVER_COUNT];
+        server_info_t servers[SERVER_COUNT] = {0};
         
         void setup_mesh_server();
 
