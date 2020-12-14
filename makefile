@@ -41,4 +41,4 @@ $(BUILD_DIR):
 	mkdir $@
 
 clean:
-	rm -rf build client mesh unit_test starter
+	rm -rf build client mesh test starter

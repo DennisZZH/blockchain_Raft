@@ -7,10 +7,10 @@
 using namespace std;
 
 int main() {
-    // Create an bc file on disk
+    // Create an bc_file_1 on disk
     string filename1a = "bc_file_1.txt";
     std::ofstream outfile1a(filename1a);
-    outfile1a << "-1" << endl;
+    outfile1a << "0000" << endl;
 
     Transaction t1(0,1,13.14);
     Block b1(1, t1);
@@ -19,6 +19,7 @@ int main() {
     txn_msg_ptr1->set_sender_id(b1.get_txn().get_sender_id());
     txn_msg_ptr1->set_recver_id(b1.get_txn().get_recver_id());
     txn_msg_ptr1->set_amount(b1.get_txn().get_amount());
+    txn_msg_ptr1->set_bal_txn_flag(b1.get_txn().get_bal_txn_flag());
     block_msg1.set_allocated_txn(txn_msg_ptr1);
     block_msg1.set_term(b1.get_term());
     block_msg1.set_phash(b1.get_phash());
@@ -29,9 +30,9 @@ int main() {
 
     outfile1a.close();
 
-    // Create a bal tab on disk
+    // Create a bal_tab_file_1 on disk
     string filename1b = "bal_tab_1.txt";
     std::ofstream outfile1b(filename1b);
-    outfile1b << "10 10 10" << endl;
+    outfile1b << "10 10 10 " << endl;
     outfile1b.close();
 }

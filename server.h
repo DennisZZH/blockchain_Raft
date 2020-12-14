@@ -37,6 +37,14 @@ public:
     void run_state_machine();
 
     // raft related
+    void print_info() {
+        std::cout << "server id: " << id << std::endl;
+        std::cout << "current leader: " << curr_leader << std::endl;
+        std::cout << "voted candidate: " << voted_candidate << std::endl;
+        bal_tab.print_bal_tab();
+        bc_log.print_block_chain();
+    }
+
     uint32_t get_curr_leader() {return curr_leader;}
     term_t get_curr_term() {return curr_term;}
     int get_voted_candidate() {return voted_candidate;}
