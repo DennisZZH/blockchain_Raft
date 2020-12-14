@@ -287,7 +287,7 @@ void Network::setup_client_server() {
     sockaddr_in addr = {0};
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = inet_addr(SERVER_IP);
-    addr.sin_port = htons(SERVER_BASE_PORT);
+    addr.sin_port = htons(SERVER_BASE_PORT + get_context()->get_id());
     
     if (bind(client_server_fd, (sockaddr*)&addr, sizeof(addr)) < 0) {
         std::cerr << "[setup_replica_server] Failed to bind the socket." << std::endl;
@@ -316,7 +316,7 @@ void Network::client_wait_handler() {
         }
 
         // by subtracting the client base port, we can get the client id here
-        int client_id = ntohs(client_addr.sin_port) - CLIENT_BASE_PORT;
+        int client_id = (ntohs(client_addr.sin_port) - CLIENT_BASE_PORT - get_context()->get_id()) / CLIENT_PORT_MULT;
         
         // based on the client id we can save the information in client info array
         if (clients[client_id].connected == true) {
@@ -352,6 +352,7 @@ void Network::client_wait_handler() {
  */
 void Network::client_recv_handler(int client_id) {
     int sock = clients[client_id].sock;
+    std::cout << "[client_recv_handler] start listening messages from client: " << client_id << std::endl;
     while (!stop_flag && clients[client_id].connected) {
         COMM_HEADER_TYPE msg_bytes = 0;
         int count = 0;
@@ -399,6 +400,7 @@ void Network::client_recv_handler(int client_id) {
         std::cout << " req# " << request->request_id << std::endl; 
     }
     // The client connection is lost. Need to free the dynamically allocated client information.
+    std::cout << "[Network::client_recv_handler] disconnected from client: " << client_id << std::endl;
     clients[client_id].connected = false;
     
 }

@@ -4,6 +4,7 @@
 #include <deque>
 #include "parameter.h"
 #include "Msg.pb.h"
+#include "message.h"
 
 namespace RaftClient {
     class Network;
