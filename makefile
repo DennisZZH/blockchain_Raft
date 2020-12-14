@@ -4,6 +4,7 @@ CFLAGS += -std=c++11
 PROTOBUF_LIB := `pkg-config --cflags --libs protobuf`
 OPENSSL_FLAGS :=  -I/usr/local/opt/openssl@1.1/include -L/usr/local/opt/openssl@1.1/lib -lcrypto
 
+
 # Sources files to be compiled
 SOURCES = \
 server.cpp 	\
@@ -32,7 +33,7 @@ message: Msg.proto
 
 
 $(BUILD_DIR)/%.o: %.cpp $(BUILD_DIR)
-	$(CC) $(CFLAGS) $(PROTOBUF_LIB) $(OPENSSL_FLAGS) -c $^ -o $@ -g
+	$(CC) $(CFLAGS) $(OPENSSL_FLAGS) -c $^ -o $@ -g
 
 $(BUILD_DIR):
 	mkdir $@

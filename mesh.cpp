@@ -6,6 +6,8 @@
 #include "raft.h"
 using namespace RaftMesh;
 
+#define DEBUG_MODE
+
 Mesh::Mesh() {
     setup_mesh_server();
 }
@@ -37,7 +39,7 @@ Mesh::~Mesh() {
 void Mesh::setup_mesh_server() {
     mesh_sock = socket(AF_INET, SOCK_STREAM, 0);
     int status = 0;
-    if (setsockopt(mesh_sock, SOL_SOCKET, SO_REUSEADDR, &status, sizeof(status)) < 0) {
+    if (setsockopt(mesh_sock, SOL_SOCKET, SO_REUSEPORT, &status, sizeof(status)) < 0) {
         std::cerr << "[Mesh::setup_mesh_server] failed to set the socket options." << std::endl;
         close(mesh_sock);
         exit(1);
@@ -63,7 +65,7 @@ void Mesh::setup_mesh_server() {
     wait_conn_thread = std::thread(&Mesh::wait_conn_handler, this);
 }
 
-void Mesh::append_server_trans_queue(int replica_id, trans_queue_item_t* trans_item) {    
+void Mesh::append_server_trans_queue(int replica_id, trans_queue_item_t* trans_item) {
     servers[replica_id].trans_queue_lock.lock();
     servers[replica_id].trans_queue.push_back(trans_item);
     servers[replica_id].trans_queue_lock.unlock();
@@ -176,10 +178,16 @@ void Mesh::recv_handler(int replica_id) {
             trans_queue_item_t *trans_item = new trans_queue_item_t();
             trans_item->enqueue_time = clock_t::now();
             trans_item->msg = replica_msg;
-            append_server_trans_queue(receiver_id, trans_item);      
+            append_server_trans_queue(receiver_id, trans_item);    
         } else {
             delete replica_msg;
         }
+
+        #ifdef DEBUG_MODE
+        std::cout << "[Network::recv_handler] forwarded message from replica: " << replica_id;
+        std::cout << " to replica: " << receiver_id;
+        std::cout << " message type: " << replica_msg->type() << std::endl;
+        #endif
     }
     std::cout << "[Network::recv_handler] server: " << replica_id << " disconnected." << std::endl;
     servers[replica_id].connected = false;
