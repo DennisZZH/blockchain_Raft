@@ -206,7 +206,6 @@ void FollowerState::run() {
                         // Append any new entries not already in the log
                          std::cout<<"[State::FollowerState::run] AppendEntry succeed, Fixing Log!"<<std::endl;
                         get_context()->get_bc_log().clean_up_blocks(append_rpc->prev_log_index + 1, append_rpc->entries);
-                        get_context()->get_bc_log().set_committed_index(append_rpc->commit_index);
                         reply.term = get_context()->get_curr_term();
                         reply.success = true;
                     }
@@ -288,7 +287,7 @@ void LeaderState::run() {
     Network* network = get_context()->get_network();
 
     // Initialize nextIndex for each replica to last log index + 1
-    int last_log_index = get_context()->get_bc_log().get_blockchain_length() - 1;
+    int last_log_index = get_context()->get_bc_log().get_last_index();
     for (int i = 0; i < SERVER_COUNT; i++) {
         nextIndex[i] = last_log_index + 1;
     }
@@ -321,6 +320,7 @@ void LeaderState::run() {
         // Get current block info, after append new block, current block will become prev block
         term_t prev_log_term = get_context()->get_bc_log().get_last_term();
         int prev_log_index = get_context()->get_bc_log().get_last_index();
+
         // Append new entry to local.
         if (msg_ptr->type == BALANCE_REQUEST) {
             get_context()->get_bc_log().add_transaction(get_context()->get_curr_term(), Transaction(true));
@@ -399,14 +399,16 @@ void LeaderState::run() {
                     else {
                         // Append failed due to log inconsistency, decrement nextIndex and retry
                         std::cout<<"[State::LeaderState::run] Append failde due to log inconsistency, Retry!"<<std::endl;
-                        nextIndex[reply->sender_id]--;
+                        nextIndex[reply->sender_id] = nextIndex[reply->sender_id] - 1;
+                        prev_log_index = prev_log_index - 1;
+
                         replica_msg_wrapper_t msg;
                         msg.type = APP_ENTR_RPC;
                         append_entry_rpc_t append_msg;
                         append_msg.term = get_context()->get_curr_term();
                         append_msg.leader_id = get_context()->get_id();
-                        append_msg.prev_log_term = prev_log_term;
-                        append_msg.prev_log_index = prev_log_index;
+                        append_msg.prev_log_term = get_context()->get_bc_log().get_block_by_index(prev_log_index).get_index();
+                        append_msg.prev_log_index = get_context()->get_bc_log().get_block_by_index(prev_log_index).get_term();
                         append_msg.commit_index = get_context()->get_bc_log().get_committed_index();
                         int next_index = nextIndex[reply->sender_id];
                         std::vector<Block> entries;
@@ -426,7 +428,7 @@ void LeaderState::run() {
         // Mark log committed if stored on a majority and at least one entry stored in the current term.
         // Execute the committed txn on balacne table, Also update committed index of the blockchain
         std::cout<<"[State::LeaderState::run] Enrty Committed, Update Balance Table!"<<std::endl;
-        int curr_committed_index =  get_context()->get_bc_log().get_committed_index() + 1;
+        int curr_committed_index =  get_context()->get_bc_log().get_blockchain_length() - 1;
         get_context()->update_bal_tab_and_committed_index(curr_committed_index);
         // Reply to client
         response_t response;
