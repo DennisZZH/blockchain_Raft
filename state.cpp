@@ -45,7 +45,7 @@ void CandidateState::run() {
         if (ms.count() > curr_election_timeout) {
             std::cout<<"[State::CandidateState::run] Candidate Timeout!"<<std::endl;
             get_context()->set_state(new CandidateState(get_context()));
-            goto exit;
+            return;
         }
 
         // Check if any client wrongly send request to a candidate
@@ -131,7 +131,7 @@ void FollowerState::run() {
         if (ms.count() > curr_election_timeout) {
             std::cout<<"[State::FollowerState::run] Follower State Timeout, Step up to Candidate State!"<<std::endl;
             get_context()->set_state(new CandidateState(get_context()));
-            goto exit;
+            return;
         }
 
         // Check if any client wrongly send request to a follower
@@ -327,6 +327,11 @@ void LeaderState::run() {
         }
         else {
             // Ignore all other types of msg from client
+            // Free msg ptr and payload
+            if (msg_ptr->payload != NULL) {
+                free(msg_ptr->payload);
+            }
+            if (msg_ptr != NULL) free(msg_ptr);
             continue;
         }
         // Whenever last log index >= netIndex for a follower, send AppendEntries PRC with log enetries starting at nextIndex,
@@ -439,14 +444,13 @@ void LeaderState::run() {
         if (msg_ptr->payload != NULL) {
             free(msg_ptr->payload);
         }
-        free(msg_ptr);
-
+        if (msg_ptr != NULL) free(msg_ptr);
     }
 
 exit:
     if (msg_ptr->payload != NULL) {
         free(msg_ptr->payload);
     }
-    free(msg_ptr);
+    if (msg_ptr != NULL) free(msg_ptr);
     return; 
 }
