@@ -46,7 +46,7 @@ class Block {
             nonce = find_nonce();
             // These fields need to be set after this block is added to blockchain
             phash = "NULL";
-            index = -1;
+            index = 0;
         }
 
         void set_term(uint32_t t) {term = t;}

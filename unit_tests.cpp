@@ -4,6 +4,7 @@
 #include <vector>
 #include "blockchain.h"
 #include "balance_table.h"
+#include "Msg.pb.h"
 
 using namespace std;
 

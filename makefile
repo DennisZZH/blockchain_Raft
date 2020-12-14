@@ -24,9 +24,11 @@ client: $(BUILD_DIR)/client.o Msg.pb.cc
 mesh: $(BUILD_DIR)/mesh.o Msg.pb.cc
 	$(CC) $(CFLAGS) $(PROTOBUF_LIB) $(OPENSSL_FLAGS) $^ -o $@ -g
 
-blockchain_test: blockchain_test.cpp
-	$(CC) $(CFLAGS) $(OPENSSL_FLAGS) $^ -o $@
+test: unit_tests.cpp
+	$(CC) $(CFLAGS) $(PROTOBUF_LIB) $(OPENSSL_FLAGS) $^ -o $@ -g
 
+starter: content_starter.cpp
+	$(CC) $(CFLAGS) $(PROTOBUF_LIB) $(OPENSSL_FLAGS) $^ -o $@ -g
 message: Msg.proto
 	$(PC) -I=. --cpp_out=. ./Msg.proto
 
@@ -38,4 +40,4 @@ $(BUILD_DIR):
 	mkdir $@
 
 clean:
-	rm -rf build client mesh blockchain_test
+	rm -rf build client mesh unit_test starter
