@@ -337,28 +337,27 @@ void LeaderState::run() {
                     if (reply->success == true) {
                         // Append entry succeed
                         num_accept++;
-                        // TODO： nextIndex[reply.id] = get_context()->get_bc_log().get_blockchain_length() - 1;
+                        nextIndex[reply->sender_id] = get_context()->get_bc_log().get_blockchain_length() - 1;
                     }
                     else {
                         // Append failed due to log inconsistency, decrement nextIndex and retry
-                        // TODO
-                        // nextIndex[reply.id]--;
-                        // replica_msg_wrapper_t msg;
-                        // msg.type = APP_ENTR_RPC;
-                        // append_entry_rpc_t append_msg;
-                        // append_msg.term = get_context()->get_curr_term();
-                        // append_msg.leader_id = get_context()->get_id();
-                        // append_msg.prev_log_term = prev_log_term;
-                        // append_msg.prev_log_index = prev_log_index;
-                        // append_msg.commit_index = get_context()->get_bc_log().get_committed_index();
-                        // int next_index = nextIndex[reply.id];
-                        // std::vector<Block> entries;
-                        // for (int j = next_index; j <= get_context()->get_bc_log().get_blockchain_length() - 1; j++) {
-                        //     entries.push_back(get_context()->get_bc_log().get_block_by_index(j));
-                        // }
-                        // append_msg.entries = entries;
-                        // msg.payload = (void*) &append_msg;
-                        // network->replica_send_message(msg, reply.id);
+                        nextIndex[reply->sender_id]--;
+                        replica_msg_wrapper_t msg;
+                        msg.type = APP_ENTR_RPC;
+                        append_entry_rpc_t append_msg;
+                        append_msg.term = get_context()->get_curr_term();
+                        append_msg.leader_id = get_context()->get_id();
+                        append_msg.prev_log_term = prev_log_term;
+                        append_msg.prev_log_index = prev_log_index;
+                        append_msg.commit_index = get_context()->get_bc_log().get_committed_index();
+                        int next_index = nextIndex[reply->sender_id];
+                        std::vector<Block> entries;
+                        for (int j = next_index; j <= get_context()->get_bc_log().get_blockchain_length() - 1; j++) {
+                            entries.push_back(get_context()->get_bc_log().get_block_by_index(j));
+                        }
+                        append_msg.entries = entries;
+                        msg.payload = (void*) &append_msg;
+                        network->replica_send_message(msg, reply->sender_id);
                     }
                 } 
             }
@@ -389,6 +388,7 @@ void LeaderState::run() {
             free(msg_ptr->payload);
         }
         free(msg_ptr);
+
     }
 
 exit:
