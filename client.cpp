@@ -148,7 +148,20 @@ void Network::recv_handler(int index) {
         response_msg.ParseFromArray(msg, msg_bytes);
         delete [] msg;
 
-        // TODO: add the message to the queue.
+        // if client receives leader change response, it doesn't need to add to the queue
+        // instread, it will change the estimated leader id directly.
+        message_type_t type = (message_type_t) response_msg.type();
+        if (type == LEADER_CHANGE) {
+            int leader_id = response_msg.leader_id();
+            get_client()->set_leader_id(leader_id);
+            std::cout << "[Network::recv_handler] changed leader to leader: " << leader_id << std::endl;   
+            continue;
+        }
+
+        // if the response is not leader change response
+        // then need to save to the response queue
+        auto response = new response_t();
+        response->type = type;
         std::cout << "[Network::recv_handler] message received and saved!" << std::endl;
     }
 
@@ -156,6 +169,32 @@ void Network::recv_handler(int index) {
     close(server_sock);
     servers[index].connected = false;
 }
+
+void Network::response_queue_push(response_t* response) {
+    if (response == NULL)
+        return;
+    response_queue_lock.lock();
+    response_queue.push_back(response);
+    response_queue_lock.unlock();
+}
+
+/**
+ * @brief caller need to free the dynamic memory by himself.
+ * 
+ * @return response_t* 
+ */
+response_t* Network::response_queue_pop() {
+    if (response_queue_get_count() == 0)
+        return NULL;
+    response_t* response = response_queue.at(0);
+    response_queue.pop_front();
+    return response;
+}
+
+size_t Network::response_queue_get_count() {
+    return response_queue.size();
+}
+
 
 /**
  * @brief send message to estimated leader
@@ -196,6 +235,8 @@ void Network::send_balance(uint64_t req_id) {
     request_msg.set_type(BALANCE_REQUEST);
     send_message(request_msg);
 }
+
+
 
 int main (int argc, char* argv[]) {
     

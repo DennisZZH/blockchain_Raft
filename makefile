@@ -9,14 +9,13 @@ OPENSSL_FLAGS :=  -I/usr/local/opt/openssl@1.1/include -L/usr/local/opt/openssl@
 SOURCES = \
 server.cpp 	\
 network.cpp \
-state.cpp \
-main.cpp
+state.cpp
 
 BUILD_DIR = build
 
 OBJECTS = $(addprefix $(BUILD_DIR)/, $(notdir $(SOURCES:.cpp=.o)))
 
-server: $(OBJECTS) Msg.pb.cc
+server: $(OBJECTS) Msg.pb.cc main.cpp
 	$(CC) $(CFLAGS) $(PROTOBUF_LIB) $(OPENSSL_FLAGS) $^ -o $@ -g
 
 client: $(BUILD_DIR)/client.o Msg.pb.cc
@@ -25,11 +24,12 @@ client: $(BUILD_DIR)/client.o Msg.pb.cc
 mesh: $(BUILD_DIR)/mesh.o Msg.pb.cc
 	$(CC) $(CFLAGS) $(PROTOBUF_LIB) $(OPENSSL_FLAGS) $^ -o $@ -g
 
-test: unit_tests.cpp
+test: $(OBJECTS) unit_tests.cpp Msg.pb.cc
 	$(CC) $(CFLAGS) $(PROTOBUF_LIB) $(OPENSSL_FLAGS) $^ -o $@ -g
 
-starter: content_starter.cpp
+starter: $(OBJECTS) $(BUILD_DIR)/content_starter.o Msg.pb.cc
 	$(CC) $(CFLAGS) $(PROTOBUF_LIB) $(OPENSSL_FLAGS) $^ -o $@ -g
+	
 message: Msg.proto
 	$(PC) -I=. --cpp_out=. ./Msg.proto
 

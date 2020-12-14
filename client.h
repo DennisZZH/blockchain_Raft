@@ -1,6 +1,7 @@
 #pragma once
 #include <thread>
 #include <stdint.h>
+#include <deque>
 #include "parameter.h"
 #include "Msg.pb.h"
 
@@ -42,6 +43,9 @@ namespace RaftClient {
             {.connected = false, .id = 2, .port = SERVER_BASE_PORT + 2, .sock = 0, NULL}
         };
 
+        std::mutex response_queue_lock;
+        std::deque<response_t*> response_queue;
+
         // threads declarations
         std::thread conn_thread;
         std::thread conn_recycle_thread;
@@ -57,7 +61,10 @@ namespace RaftClient {
         void conn_recycle_handler();
 
         // thread function listening to a sock after the connection is established.                
-        void recv_handler(int index);          
+        void recv_handler(int index);
+
+        void response_queue_push(response_t* response);
+        
 
     public:
         Network(Client* client);
@@ -68,5 +75,8 @@ namespace RaftClient {
 
         // send balance to the estimated leader.
         void send_balance(uint64_t req_id);
+
+        response_t* response_queue_pop();
+        size_t response_queue_get_count();
     };
 }
