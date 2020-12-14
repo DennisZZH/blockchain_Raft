@@ -318,7 +318,8 @@ int main (int argc, char* argv[]) {
                     std::cout << "[main] request timeout. please retry sending the request." << std::endl;
                     break;
                 }
-                if (response->type != BALANCE_RESPONSE) {
+                // DEBUG: check the logic here
+                if (response->type != TRANSACTION_RESPONSE) {
                     std::cout << "[main] wrong response type received. clear response queue. please retry" << std::endl;
                     while (client.get_network()->response_queue_get_count()) {
                         client.get_network()->response_queue_pop();
