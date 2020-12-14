@@ -17,17 +17,18 @@ class BalanceTable {
             infile.open(filename);
 
             std::string line;
-            int start = 0;
             if (infile.is_open()) {
                 getline(infile, line);
-                for (int i = 0; i < CLIENT_COUNT; i++) {
+                int i, start = 0;
+                for (i = 0; i < CLIENT_COUNT; i++) {
                     int index = line.find(" ", start);
                     if (index != std::string::npos) {
                         std::string bal_str = line.substr(start, index - start);
-                        bal_tab[i] = stoi(bal_str);
+                        bal_tab[i] = stof(bal_str);
                         start = index + 1;
                     }
                 }
+                // bal_tab[CLIENT_COUNT - 1] = stof(line.substr(start, line.size() - start));
             }
             else {
                 std::cerr << "Error: blockchain.h : parse_file_to_bc(): Unable to open file!" << std::endl;
@@ -78,6 +79,11 @@ class BalanceTable {
             outfile.close();
         }
 
+        void print_bal_tab() {
+            std::cout << "client 0 : $" << bal_tab[0] << "; ";
+            std::cout << "client 1 : $" << bal_tab[1] << "; ";
+            std::cout << "client 2 : $" << bal_tab[2] << std::endl;
+        }
     private:
         float bal_tab[CLIENT_COUNT];
         std::string filename;

@@ -19,19 +19,26 @@ class Transaction {
         void set_sender_id(uint32_t sid) {sender_id = sid;}
         void set_recver_id(uint32_t rid) {recver_id = rid;}
         void set_amount(float amt) {amount = amt;}
+        void set_flag(bool flag) {bal_txn_flag = flag;}
         uint32_t get_sender_id() {return sender_id;}
         uint32_t get_recver_id() {return recver_id;}
         float get_amount() {return amount;}
+        bool get_bal_txn_flag() {return bal_txn_flag;}
 
         std::string serialize_transaction() {
             return std::to_string(sender_id) + "-" + std::to_string(recver_id) + "-" + std::to_string(amount);
         }
-        void print_transaction() {std::cout<<"Print Transation : "<<"Client"<<sender_id<<" send $"<<amount<<" To Client"<<recver_id<<std::endl;}
+        void print_transaction() {
+            std::string flag_str;
+            if (bal_txn_flag) flag_str = "Balance";
+            else flag_str = "Transfer";
+            std::cout<< flag_str << " Transation : " << "Client " << sender_id << " send $" << amount << " To Client " << recver_id << std::endl;
+        }
 
     private:
-        uint32_t sender_id = -1;
-        uint32_t recver_id = -1;
-        float amount = -1;
+        uint32_t sender_id = 0;
+        uint32_t recver_id = 0;
+        float amount = 0;
         bool bal_txn_flag = false;
 };
 
@@ -84,6 +91,7 @@ class Block {
 
         void print_block() {
             std::cout << "Print Block: " << std::endl;
+            std::cout << "    ";
             txn.print_transaction();
 	        std::cout << "    term = " << term << "; phash = " << phash << "; nonce = " 
                 << nonce << "; current_hash = " << find_hash() << "; index = " << index << std::endl;
@@ -106,7 +114,7 @@ class Block {
                 tempNounce = std::string(1, char(rand()%26 + 97));
                 hashInfo = sha256(txns_hash + tempNounce);
             }while( (*hashInfo.rbegin() != '0') && (*hashInfo.rbegin() != '1') && (*hashInfo.rbegin() != '2'));
-            std::cout<<"Found nonce = "<<tempNounce<<"; hashInfo = "<<hashInfo<<std::endl;
+            //std::cout<<"Found nonce = "<<tempNounce<<"; hashInfo = "<<hashInfo<<std::endl;
             return tempNounce;
         }
 };
@@ -123,7 +131,6 @@ class Blockchain {
         */
         
         Blockchain() {
-            committed_index = -1;
         }
 
         void load_file(std::string fname) {
@@ -155,6 +162,7 @@ class Blockchain {
                     txn.set_sender_id(block_msg.txn().sender_id());
                     txn.set_recver_id(block_msg.txn().recver_id());
                     txn.set_amount(block_msg.txn().amount());
+                    txn.set_flag(block_msg.txn().bal_txn_flag());
                     blo.set_txn(txn);
                     blo.set_phash(block_msg.phash());
                     blo.set_nonce(block_msg.nonce());
@@ -179,6 +187,7 @@ class Blockchain {
             txn_msg_ptr->set_sender_id(newblo.get_txn().get_sender_id());
             txn_msg_ptr->set_recver_id(newblo.get_txn().get_recver_id());
             txn_msg_ptr->set_amount(newblo.get_txn().get_amount());
+            txn_msg_ptr->set_bal_txn_flag(newblo.get_txn().get_bal_txn_flag());
             block_msg.set_allocated_txn(txn_msg_ptr);
             block_msg.set_term(newblo.get_term());
             block_msg.set_phash(newblo.get_phash());
@@ -213,7 +222,7 @@ class Blockchain {
             for (int i = 0; i < NUM_DIGITS_COMMITTED_INDEX; i++) {
                 int r = new_index % 10;
                 new_index /= 10;
-                index_str = index_str + std::to_string(r);
+                index_str = std::to_string(r) + index_str;
             }
             FILE *pFile = fopen(filename.c_str(), "r+");
             fseek(pFile, 0, SEEK_SET);
@@ -239,7 +248,7 @@ class Blockchain {
             for (int i = 0; i < NUM_DIGITS_COMMITTED_INDEX; i++) {
                 int r = idx % 10;
                 idx /= 10;
-                index_str = index_str + std::to_string(r);
+                index_str = std::to_string(r) + index_str;
             }
             outfile << index_str << std::endl;
             
@@ -263,9 +272,10 @@ class Blockchain {
         Block& get_last_block() {return blocks.back();};
        
         void print_block_chain(){
-            std::cout<<"Print Block Chain: "<<std::endl;
+            std::cout << "Print Block Chain: " << std::endl;
+            std::cout << "    committed index = " << committed_index << std::endl;
             for(auto &i : blocks){
-                std::cout<<"	";
+                std::cout<<"    ";
                 i.print_block();
             }
         }
