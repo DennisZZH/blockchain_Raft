@@ -26,7 +26,7 @@ int main() {
     // Create an bc_file_0 on disk
     string filename0a = "bc_file_0.txt";
     std::ofstream outfile0a(filename0a);
-    outfile0a << "0000" << endl;
+    outfile0a << "+0000\n";
     // Write initial txn to bc
     outfile0a << block_str << endl;
     outfile0a.close();
@@ -40,7 +40,7 @@ int main() {
      // Create an bc_file_1 on disk
     string filename1a = "bc_file_1.txt";
     std::ofstream outfile1a(filename1a);
-    outfile1a << "0000" << endl;
+    outfile1a << "+0000\n";
     // Write initial txn to bc
     outfile1a << block_str << endl;
     outfile1a.close();
@@ -53,7 +53,7 @@ int main() {
     // Create an bc_file_2 on disk
     string filename2a = "bc_file_2.txt";
     std::ofstream outfile2a(filename2a);
-    outfile2a << "0000" << endl;
+    outfile2a << "+0000\n";
     // Write initial txn to bc
     outfile2a << block_str << endl;
     outfile2a.close();
