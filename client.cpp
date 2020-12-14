@@ -35,25 +35,25 @@ Network::Network(Client *client) {
     this->client = client;
 
     // bind the three sockets connecting to servers to dedicated ports
-    for (int i = 0; i < SERVER_COUNT; i++) {
-        servers[i].sock = socket(AF_INET, SOCK_STREAM, 0);
-        int status;
-        if (setsockopt(servers[i].sock, SOL_SOCKET, SO_REUSEPORT, &status, sizeof(status)) < 0) {
-            std::cerr << "[Network::conn_handler] failed to set the socket options." << std::endl;
-            exit(1);
-        }
+    // for (int i = 0; i < SERVER_COUNT; i++) {
+    //     servers[i].sock = socket(AF_INET, SOCK_STREAM, 0);
+    //     int status;
+    //     if (setsockopt(servers[i].sock, SOL_SOCKET, SO_REUSEPORT, &status, sizeof(status)) < 0) {
+    //         std::cerr << "[Network::conn_handler] failed to set the socket options." << std::endl;
+    //         exit(1);
+    //     }
 
-        sockaddr_in self_addr = {0}; 
-        self_addr.sin_family = AF_INET;
-        self_addr.sin_addr.s_addr = inet_addr(CLIENT_IP);
-        self_addr.sin_port = htons(CLIENT_BASE_PORT + get_client()->get_client_id() * CLIENT_PORT_MULT + i);
+    //     sockaddr_in self_addr = {0}; 
+    //     self_addr.sin_family = AF_INET;
+    //     self_addr.sin_addr.s_addr = inet_addr(CLIENT_IP);
+    //     self_addr.sin_port = htons(CLIENT_BASE_PORT + get_client()->get_client_id() * CLIENT_PORT_MULT + i);
 
-        if (bind(servers[i].sock, (sockaddr*) &self_addr, sizeof(self_addr)) < 0) {
-            std::cerr << "[Network::conn_handler] failed to bind the self port." << std::endl;
-            close(servers[i].sock);
-            exit(1);
-        }
-    }
+    //     if (bind(servers[i].sock, (sockaddr*) &self_addr, sizeof(self_addr)) < 0) {
+    //         std::cerr << "[Network::conn_handler] failed to bind the self port." << std::endl;
+    //         close(servers[i].sock);
+    //         exit(1);
+    //     }
+    // }
 
     conn_thread = std::thread(&Network::conn_handler, this);
 }
@@ -84,17 +84,35 @@ void Network::conn_handler() {
             std::cout << "[Network::conn_handler] connecting to server: " << servers[i].id << std::endl;
             #endif
 
-            int s = servers[i].sock;
+            int sock = socket(AF_INET, SOCK_STREAM, 0);
+            int status;
+            if (setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &status, sizeof(status)) < 0) {
+                std::cerr << "[Network::conn_handler] failed to set the socket options." << std::endl;
+                close(sock);
+                continue;
+            }
+
+            sockaddr_in self_addr = {0}; 
+            self_addr.sin_family = AF_INET;
+            self_addr.sin_addr.s_addr = inet_addr(CLIENT_IP);
+            self_addr.sin_port = htons(CLIENT_BASE_PORT + get_client()->get_client_id() * CLIENT_PORT_MULT + i);
+
+            if (bind(sock, (sockaddr*) &self_addr, sizeof(self_addr)) < 0) {
+                std::cerr << "[Network::conn_handler] failed to bind the self port." << std::endl;
+                close(sock);
+                continue;
+            }
 
             sockaddr_in addr = {0};
             addr.sin_family = AF_INET;
             addr.sin_addr.s_addr = inet_addr(SERVER_IP);
             addr.sin_port = htons(servers[i].port);
             
-            if (connect(s, (sockaddr*) &addr, sizeof(sockaddr_in)) < 0) {
+            if (connect(sock, (sockaddr*) &addr, sizeof(sockaddr_in)) < 0) {
                 #ifdef DEBUG_MODE
                 std::cerr << "[Network::conn_handler] Failed to connect the server " << servers[i].id << std::endl;
                 #endif
+                close(sock);
                 continue;
             }
             
@@ -110,6 +128,7 @@ void Network::conn_handler() {
 
             // need to update server information so that the listening thread can use it
             servers[i].connected = true;
+            servers[i].sock = sock;
             servers[i].recv_task = new std::thread(&RaftClient::Network::recv_handler, this, i);
         }
         // sleep the current thread after looping for one round
@@ -186,6 +205,7 @@ void Network::recv_handler(int index) {
 
     std::cout << "[Network::recv_handler] connection with server: " << server_id << " is lost." << std::endl;
     servers[index].connected = false;
+    close(server_sock);
 }
 
 void Network::response_queue_push(response_t* response) {

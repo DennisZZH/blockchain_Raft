@@ -11,7 +11,7 @@
 // client id = (client_port - server_id - CLIENT_BASE_PORT) / CLIENT_PORT_MULT
 #define CLIENT_COUNT            3
 #define CLIENT_IP               "127.0.0.1"
-#define CLIENT_BASE_PORT        9100
+#define CLIENT_BASE_PORT        11000
 #define CLIENT_PORT_MULT        10
 
 // servers information that the client connects to

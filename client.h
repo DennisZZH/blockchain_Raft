@@ -26,7 +26,7 @@ namespace RaftClient {
     public:
         Client(int id);
         ~Client();
-        void set_leader_id(int id) {client_id = id;}
+        void set_leader_id(int id) {leader_id = id;}
         
         int get_client_id() {return client_id;}
         int get_leader_id() {return leader_id;}
