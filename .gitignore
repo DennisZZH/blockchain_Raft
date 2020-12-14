@@ -2,6 +2,7 @@
 mesh
 client
 server
+starter
 blockchain_test
 Msg.pb*
 *.dSYM
