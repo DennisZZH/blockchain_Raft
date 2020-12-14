@@ -40,5 +40,5 @@ Msg.pb*
 *.out
 *.app
 
-.vscode
+# .vscode
 .DS_Store
