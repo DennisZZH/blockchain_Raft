@@ -184,8 +184,8 @@ void Mesh::recv_handler(int replica_id) {
         }
 
         #ifdef DEBUG_MODE
-        std::cout << "[Network::recv_handler] forwarded message from replica: " << replica_id;
-        std::cout << " to replica: " << receiver_id;
+        std::cout << "[Network::recv_handler] added message from replica: " << replica_id;
+        std::cout << " to replica: " << receiver_id << "'s queue";
         std::cout << " message type: " << replica_msg->type() << std::endl;
         #endif
     }
