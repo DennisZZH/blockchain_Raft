@@ -450,7 +450,7 @@ void LeaderState::run() {
             auto curr = std::chrono::system_clock::now();
             auto dt = curr - last;
             auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(dt);
-            if (dt > LEADER_HANDLE_TIME_MS) {
+            if (ms.count() > LEADER_HANDLE_TIME_MS) {
                 timeout_flag = true;
                 break;
             }
@@ -490,8 +490,8 @@ void LeaderState::run() {
 
                 if (reply->term == get_context()->get_curr_term()) {
                     // Reset timmer
-                    last = last = std::chrono::system_clock::now();
-                    
+                    last = std::chrono::system_clock::now();
+
                     if (reply->success == true && reply->reply_hearbeat == false) {
                         // Append entry succeed
                         std::cout<<"[State::LeaderState::run] append succeed! sender: " << reply->sender_id <<std::endl;
@@ -534,18 +534,20 @@ void LeaderState::run() {
         
         std::cout << "[State::LeaderState::run] stop waiting for majority commit result. num accepted: " << num_accept << std::endl;
         
-        if (timeout_flag) {
-            // Reply failure to client   
-            continue;
-        }
-
-        // Mark log committed if stored on a majority and at least one entry stored in the current term.
-        // Execute the committed txn on balacne table, Also update committed index of the blockchain
-        std::cout<<"[State::LeaderState::run] Enrty Committed, Update Balance Table!"<<std::endl;
-        int curr_committed_index =  get_context()->get_bc_log().get_blockchain_length() - 1;
-        get_context()->update_bal_tab_and_committed_index(curr_committed_index);
-        // Reply to client
         response_t response;
+        if (timeout_flag) {
+            // Reply failure to client
+            response.succeed = false;
+        }
+        else{
+            response.succeed = true;
+            // Mark log committed if stored on a majority and at least one entry stored in the current term.
+            // Execute the committed txn on balacne table, Also update committed index of the blockchain
+            std::cout<<"[State::LeaderState::run] Enrty Committed, Update Balance Table!"<<std::endl;
+            int curr_committed_index =  get_context()->get_bc_log().get_blockchain_length() - 1;
+            get_context()->update_bal_tab_and_committed_index(curr_committed_index);
+        }
+        // Reply to client
         if (msg_ptr->type == TRANSACTION_REQUEST) {
             response.type = TRANSACTION_RESPONSE;
         }
@@ -553,10 +555,9 @@ void LeaderState::run() {
             response.type = BALANCE_RESPONSE;
         }
         response.request_id = msg_ptr->request_id;
-        response.succeed = true;
         response.leader_id = get_context()->get_id();
         response.balance = get_context()->get_bal_tab().get_balance(msg_ptr->client_id);
-        std::cout<<"[State::LeaderState::run] reply to client. balance: " << response.balance <<std::endl;
+        // std::cout<<"[State::LeaderState::run] reply to client. balance: " << response.balance <<std::endl;
         network->client_send_message(response, msg_ptr->client_id);
 
         // Free msg ptr and payload
