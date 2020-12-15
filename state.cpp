@@ -185,9 +185,13 @@ void FollowerState::run() {
                 if (append_rpc->entries.size() == 0) {
                      // std::cout<<"[State::FollowerState::run] This appendEntryRPC is a HeartBeat!"<<std::endl;
                     // Comfirm leader
-                    get_context()->set_curr_leader(append_rpc->leader_id);
+                    if (append_rpc->leader_id != get_context()->get_curr_leader()) {
+                        get_context()->set_curr_leader(append_rpc->leader_id);
+                    }
                     // Advance balance table with newly committed entries (Also update committed index of the blockchain)
-                    get_context()->update_bal_tab_and_committed_index(append_rpc->commit_index);
+                    if (append_rpc->prev_log_index == get_context()->get_bc_log().get_last_index() && append_rpc->prev_log_term == get_context()->get_bc_log().get_last_term()) {
+                        get_context()->update_bal_tab_and_committed_index(append_rpc->commit_index);
+                    }
                     reply.term = get_context()->get_curr_term();
                     reply.success = true;
                 }
@@ -268,6 +272,8 @@ void LeaderState::send_heartbeat() {
     heartbeat.term = get_context()->get_curr_term();
     heartbeat.leader_id = get_context()->get_id();
     heartbeat.commit_index = get_context()->get_bc_log().get_committed_index();
+    heartbeat.prev_log_index = get_context()->get_bc_log().get_last_index();
+    heartbeat.prev_log_term = get_context()->get_bc_log().get_last_term();
     // Heartbeat doesn't contain any log entries, prev log term or index.
     
     // Need to wrap the heartbeat with replica_msg_wrapper_t because it's the msg used by the network.
