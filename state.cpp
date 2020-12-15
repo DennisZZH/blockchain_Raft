@@ -201,26 +201,26 @@ void FollowerState::run() {
                 }
 
                 // [case][#2] If the append RPC contains log entries
-                // DEBUG:
-                // If existing entries conflict with new entries, delete all existing entries starting with first conflicting entry
+                /* If existing entries conflict with new entries, delete all existing entries starting with first conflicting entry
                         // Append any new entries not already in the log
                         // leaders log:  [a][a][a][a][a]||[e][e][e][e] [e]
                         //                            ^          next       
                         //                            prev_index / prev_term  
                         // follower log: [a][a][a][a][a]||[c][d][        ]                                 
                         //                            ^             
-                        //                            last_index / last_log  
+                        //                            last_index / last_log  */
                 else {
                      // std::cout<<"[State::FollowerState::run] This appendEntryRPC contains Logs!"<<std::endl;
                     // Return failure if log doesn't contain an entry at prevLogIndex whose term matches prevLogTerm
-                    if (get_context()->get_bc_log().get_last_index() != append_rpc->prev_log_index
-                        || get_context()->get_bc_log().get_last_term() != append_rpc->prev_log_term) {
-                            std::cout<<"[State::FollowerState::run] AppendEntry failed due to log inconsistency!"<<std::endl;
-                            reply.term = get_context()->get_curr_term();
-                            reply.success = false;
-                    }
-                    else {
-                        
+                    if (get_context()->get_bc_log().get_last_index() < append_rpc->prev_log_index) {
+                        std::cout<<"[State::FollowerState::run] append entry failed due to log inconsistency! index out of range." << std::endl;
+                        reply.term = get_context()->get_curr_term();
+                        reply.success = false;
+                    } else if (get_context()->get_bc_log().get_block_by_index(append_rpc->prev_log_index).get_term() != append_rpc->prev_log_term) {
+                        std::cout<<"[State::FollowerState::run] append entry failed due to log inconsistency!"<<std::endl;
+                        reply.term = get_context()->get_curr_term();
+                        reply.success = false;
+                    } else {  
                         std::cout<<"[State::FollowerState::run] AppendEntry succeed, Fixing Log!"<<std::endl;
                         get_context()->get_bc_log().clean_up_blocks(append_rpc->prev_log_index + 1, append_rpc->entries);
                         reply.term = get_context()->get_curr_term();
