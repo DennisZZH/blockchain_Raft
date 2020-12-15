@@ -177,6 +177,7 @@ void FollowerState::run() {
                 std::cout << "[State::FollowerState::run] leader term is smaller. rejected!" << std::endl; 
                 reply.term = get_context()->get_curr_term();
                 reply.success = false;
+                reply.reply_hearbeat = true;
             }
             else {
                 // Update the timestamp if the term is the lastest term.
@@ -357,13 +358,13 @@ void LeaderState::run() {
             else if (msg.type == APP_ENTR_RPL) {
                 append_entry_reply_t  *reply = (append_entry_reply_t *) msg.payload;
                 // Heartbeat reply
-                if (reply->term > get_context()->get_curr_term()) {
+                if (reply->reply_hearbeat && reply->term > get_context()->get_curr_term()) {
                     get_context()->set_state(new FollowerState(get_context()));
                     if (msg.payload != NULL) free(msg.payload);
                     return;
                 }
                 // appendEntryRPC reply
-                if (reply->term == get_context()->get_curr_term() && reply->success) {
+                if (reply->reply_hearbeat == false && reply->term == get_context()->get_curr_term()  && reply->success) {
                     // Need to update this follower's nextIndex
                     nextIndex[reply->sender_id] = get_context()->get_bc_log().get_blockchain_length();
                 }
@@ -470,6 +471,11 @@ void LeaderState::run() {
             else if (msg.type == APP_ENTR_RPL) {
                 std::cout<<"[State::LeaderState::run] recv a <request vote rpc reply>!"<<std::endl;
                 append_entry_reply_t* reply = (append_entry_reply_t*) msg.payload;
+
+                if (reply->term > get_context()->get_curr_term()) {
+                    get_context()->set_state(new FollowerState(get_context()));
+                    goto exit;
+                }
 
                 if (reply->term == get_context()->get_curr_term()) {
                     if (reply->success == true && reply->reply_hearbeat == false) {
