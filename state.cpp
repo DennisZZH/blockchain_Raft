@@ -170,7 +170,8 @@ void FollowerState::run() {
             std::cout<<"[State::FollowerState::run] received a <append entry rpc>!"<< (append_rpc->entries.size() ? "" : "heartbeat") <<std::endl;
             
             // Return failure if term is outdated (leader invalid)
-            if (append_rpc->term < get_context()->get_curr_term()) { 
+            if (append_rpc->term < get_context()->get_curr_term()) {
+                std::cout << "[State::FollowerState::run] leader term is smaller. rejected!" << std::endl; 
                 reply.term = get_context()->get_curr_term();
                 reply.success = false;
             }
@@ -182,9 +183,9 @@ void FollowerState::run() {
                 }
                 // Reset timeout
                 last_time = std::chrono::system_clock::now();
-                // If the append RPC is just a heartbeat.
+                
+                // [case][#1] If the append RPC is just a ❤️ heartbeat ❤️.
                 if (append_rpc->entries.size() == 0) {
-                    //  std::cout<<"[State::FollowerState::run] This appendEntryRPC is a HeartBeat!"<<std::endl;
                     // Comfirm leader
                     if (append_rpc->leader_id != get_context()->get_curr_leader()) {
                         get_context()->set_curr_leader(append_rpc->leader_id);
@@ -198,7 +199,17 @@ void FollowerState::run() {
                     reply.term = get_context()->get_curr_term();
                     reply.success = true;
                 }
-                // If the append RPC contains log entries
+
+                // [case][#2] If the append RPC contains log entries
+                // DEBUG:
+                // If existing entries conflict with new entries, delete all existing entries starting with first conflicting entry
+                        // Append any new entries not already in the log
+                        // leaders log:  [a][a][a][a][a]||[e][e][e][e] [e]
+                        //                            ^          next       
+                        //                            prev_index / prev_term  
+                        // follower log: [a][a][a][a][a]||[c][d][        ]                                 
+                        //                            ^             
+                        //                            last_index / last_log  
                 else {
                      // std::cout<<"[State::FollowerState::run] This appendEntryRPC contains Logs!"<<std::endl;
                     // Return failure if log doesn't contain an entry at prevLogIndex whose term matches prevLogTerm
@@ -209,9 +220,8 @@ void FollowerState::run() {
                             reply.success = false;
                     }
                     else {
-                        // If existing entries conflict with new entries, delete all existing entries starting with first conflicting entry
-                        // Append any new entries not already in the log
-                         std::cout<<"[State::FollowerState::run] AppendEntry succeed, Fixing Log!"<<std::endl;
+                        
+                        std::cout<<"[State::FollowerState::run] AppendEntry succeed, Fixing Log!"<<std::endl;
                         get_context()->get_bc_log().clean_up_blocks(append_rpc->prev_log_index + 1, append_rpc->entries);
                         reply.term = get_context()->get_curr_term();
                         reply.success = true;
@@ -324,6 +334,11 @@ void LeaderState::run() {
             continue;
         }
 
+        // DEBUG:    
+        // TODO: check replica message.
+        // NOTE: append RPC rpl, true, false.
+        // NOTE: respond to vote rpc and heartbeat.
+
         // Fetch a client request, start the protocol
         // std::cout<<"[State::LeaderState::run] Recv a Client Request!"<<std::endl;
         msg_ptr = network->client_pop_request();
@@ -332,7 +347,8 @@ void LeaderState::run() {
         term_t prev_log_term = get_context()->get_bc_log().get_last_term();
         int prev_log_index = get_context()->get_bc_log().get_last_index();
 
-        // Append new entry to local.
+        // Append new entry to local
+        // adding new transaction will push into the blockchain a new block with the transaction wrapped
         if (msg_ptr->type == BALANCE_REQUEST) {
             get_context()->get_bc_log().add_transaction(get_context()->get_curr_term(), Transaction(true));
         }
@@ -361,6 +377,9 @@ void LeaderState::run() {
             append_msg.prev_log_term = prev_log_term;
             append_msg.prev_log_index = prev_log_index;
             append_msg.commit_index = get_context()->get_bc_log().get_committed_index();
+            // next_index is initially initialized to my last index + 1 before the push happens
+            // so basically it means the initial value should be prev_log_index + 1 at this moment
+            // which is also the newly pushed block index
             int next_index = nextIndex[i];
             std::vector<Block> entries;
             for (int j = next_index; j <= get_context()->get_bc_log().get_blockchain_length() - 1; j++) {
@@ -368,10 +387,13 @@ void LeaderState::run() {
             }
             append_msg.entries = entries;
             msg.payload = (void*) &append_msg;
-             std::cout<<"[State::LeaderState::run] Sending appendEntryRPC!"<<std::endl;
+             std::cout << "[State::LeaderState::run] sending <append entry rpc>!" << std::endl;
             network->replica_send_message(msg, i);
         }
+
         int num_accept = 1;
+        // keep running if without getting majority
+        // note: do we need to consider about the timeout here
         while (num_accept < SERVER_COUNT / 2 + 1) {
             if (network->replica_get_message_count() == 0) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(MSG_CHECK_SLEEP_MS));
@@ -411,7 +433,7 @@ void LeaderState::run() {
                         // Append failed due to log inconsistency, decrement nextIndex and retry
                         std::cout<<"[State::LeaderState::run] append failed due to log inconsistency, Retry!"<<std::endl;
                         nextIndex[reply->sender_id] = nextIndex[reply->sender_id] - 1;
-                        prev_log_index = prev_log_index - 1;
+                        prev_log_index = nextIndex[reply->sender_id] - 1;
 
                         replica_msg_wrapper_t msg;
                         msg.type = APP_ENTR_RPC;
