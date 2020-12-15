@@ -328,7 +328,6 @@ void LeaderState::run() {
             continue;
         }
 
-        // DEBUG:    
         // Check replica message before check client request
         if (network->replica_get_message_count() != 0) {
             replica_msg_wrapper_t msg;
