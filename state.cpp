@@ -383,9 +383,9 @@ void LeaderState::run() {
             std::this_thread::sleep_for(std::chrono::milliseconds(MSG_CHECK_SLEEP_MS));
             continue;
         }
-
+        
         for (int i = 0; i < SERVER_COUNT; i++) {
-            nextIndex[i] = last_log_index + 1;
+            nextIndex[i] = get_context()->get_bc_log().get_last_index() + 1;
         }
 
         // Fetch a client request, start the protocol
@@ -481,8 +481,10 @@ void LeaderState::run() {
                 }
             }
             else if (msg.type == APP_ENTR_RPL) {
-                std::cout<<"[State::LeaderState::run] recv a <append entry rpc reply>!"<<std::endl;
+                
                 append_entry_reply_t* reply = (append_entry_reply_t*) msg.payload;
+
+                std::cout<<"[State::LeaderState::run] recv a <append entry rpc reply>! term: " << reply->term <<std::endl;
 
                 if (reply->term > get_context()->get_curr_term()) {
                     get_context()->set_state(new FollowerState(get_context()));

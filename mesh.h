@@ -43,6 +43,7 @@ namespace RaftMesh {
         void append_server_trans_queue(int replica_id, trans_queue_item_t* trans_item);
         trans_queue_item_t* pop_server_trans_queue(int replica_id);
         void flush_server_trans_queue(int replica_id);
+        // void flush_server_recv_queue(int replica_id);
 
         void wait_conn_handler();
         void recv_handler(int replica_id);
