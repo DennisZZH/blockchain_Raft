@@ -317,6 +317,11 @@ class Blockchain {
         void clean_up_blocks(int index, std::vector<Block> ref) {
             // Leader clean up follower's logs up to index
             // Replace it with ref (In the case that no cleaning required, just append the new entries)
+            // L [x][x][x][a][b][c]
+            // F [x][x][x][a][b]
+            // F commit:      ^
+            //       ^ [x][a][b][c]
+            //                   ^    
             for (int i = blocks.size() - 1; i >= index; i--) {
                 blocks.pop_back();
             }
@@ -366,7 +371,7 @@ class Blockchain {
 
         Block& get_block_by_index(int index) {
             if (index < 0 || index >= blocks.size()) {
-                std::cerr << "[blockchain::get_block_by_index] error: invalid index!" << std::endl;
+                std::cerr << "[blockchain::get_block_by_index] error: invalid index! index:" << index << std::endl;
                 exit(0);
             }
             return blocks[index];

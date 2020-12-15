@@ -166,6 +166,8 @@ void FollowerState::run() {
         if (msg.type == APP_ENTR_RPC) {
             auto append_rpc = (append_entry_rpc_t*) msg.payload;
             append_entry_reply_t reply;
+            reply.sender_id = get_context()->get_id();
+            reply.success = false;
 
             //std::cout<<"[State::FollowerState::run] received a <append entry rpc>!"<< (append_rpc->entries.size() ? "" : "heartbeat") <<std::endl;
             
@@ -216,12 +218,12 @@ void FollowerState::run() {
                         std::cout<<"[State::FollowerState::run] append entry failed due to log inconsistency! index out of range." << std::endl;
                         reply.term = get_context()->get_curr_term();
                         reply.success = false;
-                    } else if (get_context()->get_bc_log().get_block_by_index(append_rpc->prev_log_index).get_term() != append_rpc->prev_log_term) {
+                    } else if ((append_rpc->prev_log_index != -1) && (get_context()->get_bc_log().get_block_by_index(append_rpc->prev_log_index).get_term() != append_rpc->prev_log_term)) {
                         std::cout<<"[State::FollowerState::run] append entry failed due to log inconsistency!"<<std::endl;
                         reply.term = get_context()->get_curr_term();
                         reply.success = false;
                     } else {  
-                        std::cout<<"[State::FollowerState::run] AppendEntry succeed, Fixing Log!"<<std::endl;
+                        std::cout<<"[State::FollowerState::run] AppendEntry succeed, Fixing Log! received entry length: " << append_rpc->entries.size() << " prev index:" << append_rpc->prev_log_index <<std::endl;
                         get_context()->get_bc_log().clean_up_blocks(append_rpc->prev_log_index + 1, append_rpc->entries);
                         reply.term = get_context()->get_curr_term();
                         reply.success = true;
@@ -309,9 +311,9 @@ void LeaderState::run() {
     get_context()->set_curr_leader(get_context()->get_id());
     // Initialize nextIndex for each replica to last log index + 1
     int last_log_index = get_context()->get_bc_log().get_last_index();
-    for (int i = 0; i < SERVER_COUNT; i++) {
-        nextIndex[i] = last_log_index + 1;
-    }
+    // for (int i = 0; i < SERVER_COUNT; i++) {
+    //     nextIndex[i] = last_log_index + 1;
+    // }
     // Send the initial heartbeat to all replicas; Declear the fact the I am elected as leader
      std::cout<<"[State::LeaderState::run] Announce HeartBeat!"<<std::endl;
     send_heartbeat();
@@ -323,10 +325,10 @@ void LeaderState::run() {
         auto dt = curr_time - last_heartbeat_time;
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(dt);
         
-        if (ms.count() >= HEARTBEAT_PERIOD_MS) {
-            send_heartbeat();
-            continue;
-        }
+        // if (ms.count() >= HEARTBEAT_PERIOD_MS) {
+        //     send_heartbeat();
+        //     continue;
+        // }
 
         // Check replica message before check client request
         if (network->replica_get_message_count() != 0) {
@@ -360,7 +362,14 @@ void LeaderState::run() {
         // If the request buffer is empty then do nothing, waiting for another round to check.
         if (network->client_get_request_count() == 0) {
             std::this_thread::sleep_for(std::chrono::milliseconds(MSG_CHECK_SLEEP_MS));
+            if (ms.count() >= HEARTBEAT_PERIOD_MS) {
+                send_heartbeat();
+            }
             continue;
+        }
+
+        for (int i = 0; i < SERVER_COUNT; i++) {
+            nextIndex[i] = last_log_index + 1;
         }
 
         // Fetch a client request, start the protocol
@@ -404,7 +413,7 @@ void LeaderState::run() {
             // next_index is initially initialized to my last index + 1 before the push happens
             // so basically it means the initial value should be prev_log_index + 1 at this moment
             // which is also the newly pushed block index
-            int next_index = nextIndex[i];
+            int next_index = prev_log_index + 1;
             std::vector<Block> entries;
             for (int j = next_index; j <= get_context()->get_bc_log().get_blockchain_length() - 1; j++) {
                 entries.push_back(get_context()->get_bc_log().get_block_by_index(j));
@@ -449,7 +458,7 @@ void LeaderState::run() {
                 if (reply->term == get_context()->get_curr_term()) {
                     if (reply->success == true) {
                         // Append entry succeed
-                        std::cout<<"[State::LeaderState::run] append succeed!"<<std::endl;
+                        std::cout<<"[State::LeaderState::run] append succeed! sender: " << reply->sender_id <<std::endl;
                         num_accept++;
                         nextIndex[reply->sender_id] = get_context()->get_bc_log().get_blockchain_length();
                     }
@@ -459,13 +468,17 @@ void LeaderState::run() {
                         nextIndex[reply->sender_id] = nextIndex[reply->sender_id] - 1;
                         prev_log_index = nextIndex[reply->sender_id] - 1;
 
+                        if (prev_log_index < -1) {
+                            continue;
+                        }
+
                         replica_msg_wrapper_t msg;
                         msg.type = APP_ENTR_RPC;
                         append_entry_rpc_t append_msg;
                         append_msg.term = get_context()->get_curr_term();
                         append_msg.leader_id = get_context()->get_id();
-                        append_msg.prev_log_term = get_context()->get_bc_log().get_block_by_index(prev_log_index).get_index();
-                        append_msg.prev_log_index = get_context()->get_bc_log().get_block_by_index(prev_log_index).get_term();
+                        append_msg.prev_log_term = (prev_log_index == -1) ? 0 : get_context()->get_bc_log().get_block_by_index(prev_log_index).get_term();
+                        append_msg.prev_log_index = (prev_log_index == -1) ? -1 : get_context()->get_bc_log().get_block_by_index(prev_log_index).get_index();
                         append_msg.commit_index = get_context()->get_bc_log().get_committed_index();
                         int next_index = nextIndex[reply->sender_id];
                         std::vector<Block> entries;
@@ -482,6 +495,8 @@ void LeaderState::run() {
                 // Leader should ignore all other type of message
             }
         }
+        std::cout << "[State::LeaderState::run] stop waiting for majority commit result. num accepted: " << num_accept << std::endl;
+
         // Mark log committed if stored on a majority and at least one entry stored in the current term.
         // Execute the committed txn on balacne table, Also update committed index of the blockchain
         std::cout<<"[State::LeaderState::run] Enrty Committed, Update Balance Table!"<<std::endl;
