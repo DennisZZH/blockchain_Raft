@@ -322,6 +322,13 @@ void LeaderState::run() {
      std::cout<<"[State::LeaderState::run] Announce HeartBeat!"<<std::endl;
     send_heartbeat();
     // Send Announancement to all clients
+    response_t response;
+    response.type = LEADER_CHANGE;
+    response.leader_id = get_context()->get_id();
+    response.request_id = 0;
+    response.succeed = false;
+    response.balance = -1;
+    network->client_send_message(response);
 
     request_t *msg_ptr;
     while (true) {
