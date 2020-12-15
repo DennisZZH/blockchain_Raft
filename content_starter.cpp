@@ -26,9 +26,9 @@ int main() {
     // Create an bc_file_0 on disk
     string filename0a = "bc_file_0.txt";
     std::ofstream outfile0a(filename0a);
-    outfile0a << "+0000\n";
+    outfile0a << "-0001\n";
     // Write initial txn to bc
-    outfile0a << block_str << endl;
+    // outfile0a << block_str << endl;
     outfile0a.close();
     // Create a bal_tab_file_1 on disk
     string filename0b = "bal_tab_0.txt";
@@ -40,9 +40,9 @@ int main() {
      // Create an bc_file_1 on disk
     string filename1a = "bc_file_1.txt";
     std::ofstream outfile1a(filename1a);
-    outfile1a << "+0000\n";
+    outfile1a << "-0001\n";
     // Write initial txn to bc
-    outfile1a << block_str << endl;
+    // outfile1a << block_str << endl;
     outfile1a.close();
      // Create a bal_tab_file_1 on disk
     string filename1b = "bal_tab_1.txt";
@@ -53,9 +53,9 @@ int main() {
     // Create an bc_file_2 on disk
     string filename2a = "bc_file_2.txt";
     std::ofstream outfile2a(filename2a);
-    outfile2a << "+0000\n";
+    outfile2a << "-0001\n";
     // Write initial txn to bc
-    outfile2a << block_str << endl;
+    // outfile2a << block_str << endl;
     outfile2a.close();
      // Create a bal_tab_file_2 on disk
     string filename2b = "bal_tab_2.txt";
