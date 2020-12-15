@@ -191,7 +191,9 @@ void FollowerState::run() {
                     }
                     // Advance balance table with newly committed entries (Also update committed index of the blockchain)
                     if (append_rpc->prev_log_index == get_context()->get_bc_log().get_last_index() && append_rpc->prev_log_term == get_context()->get_bc_log().get_last_term()) {
-                        get_context()->update_bal_tab_and_committed_index(append_rpc->commit_index);
+                        if (append_rpc->commit_index > get_context()->get_bc_log().get_committed_index()) {
+                            get_context()->update_bal_tab_and_committed_index(append_rpc->commit_index);
+                        }
                     }
                     reply.term = get_context()->get_curr_term();
                     reply.success = true;
@@ -403,7 +405,7 @@ void LeaderState::run() {
                         // Append entry succeed
                         std::cout<<"[State::LeaderState::run] append succeed!"<<std::endl;
                         num_accept++;
-                        nextIndex[reply->sender_id] = get_context()->get_bc_log().get_blockchain_length() - 1;
+                        nextIndex[reply->sender_id] = get_context()->get_bc_log().get_blockchain_length();
                     }
                     else {
                         // Append failed due to log inconsistency, decrement nextIndex and retry
