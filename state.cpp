@@ -167,7 +167,7 @@ void FollowerState::run() {
             auto append_rpc = (append_entry_rpc_t*) msg.payload;
             append_entry_reply_t reply;
 
-            std::cout<<"[State::FollowerState::run] received a <append entry rpc>!"<< (append_rpc->entries.size() ? "" : "heartbeat") <<std::endl;
+            //std::cout<<"[State::FollowerState::run] received a <append entry rpc>!"<< (append_rpc->entries.size() ? "" : "heartbeat") <<std::endl;
             
             // Return failure if term is outdated (leader invalid)
             if (append_rpc->term < get_context()->get_curr_term()) {
@@ -328,16 +328,41 @@ void LeaderState::run() {
             continue;
         }
 
+        // DEBUG:    
+        // Check replica message before check client request
+        if (network->replica_get_message_count() != 0) {
+            replica_msg_wrapper_t msg;
+            network->replica_pop_message(msg);
+            if (msg.type == REQ_VOTE_RPC) {
+                request_vote_rpc_t *request = (request_vote_rpc_t*) msg.payload;
+                if (request->term > get_context()->get_curr_term()) {
+                    get_context()->set_state(new FollowerState(get_context()));
+                    if (msg.payload != NULL) free(msg.payload);
+                    return;
+                }
+            }
+            else if (msg.type == APP_ENTR_RPC) {
+                append_entry_rpc_t *append = (append_entry_rpc_t*) msg.payload;
+                if (append->term > get_context()->get_curr_term()) {
+                    get_context()->set_state(new FollowerState(get_context()));
+                    if (msg.payload != NULL) free(msg.payload);
+                    return;
+                }
+            }
+            else {
+                // Ignore all other type of msg
+                if (msg.payload != NULL) free(msg.payload);
+            }
+        }
+
+        // NOTE: append RPC rpl, true, false.
+        // NOTE: respond to vote rpc and heartbeat.
+
         // If the request buffer is empty then do nothing, waiting for another round to check.
         if (network->client_get_request_count() == 0) {
             std::this_thread::sleep_for(std::chrono::milliseconds(MSG_CHECK_SLEEP_MS));
             continue;
         }
-
-        // DEBUG:    
-        // TODO: check replica message.
-        // NOTE: append RPC rpl, true, false.
-        // NOTE: respond to vote rpc and heartbeat.
 
         // Fetch a client request, start the protocol
         // std::cout<<"[State::LeaderState::run] Recv a Client Request!"<<std::endl;
