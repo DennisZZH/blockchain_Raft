@@ -33,6 +33,7 @@
 
 #define ELECTION_TIMEOUT_MS     10000
 #define HEARTBEAT_PERIOD_MS     2000
+#define LEADER_HANDLE_TIME_MS   4000
 
 // The length of digits of blockchain's committed index
 // ie. digit len = 4 means committed index range from 0 to 9999
