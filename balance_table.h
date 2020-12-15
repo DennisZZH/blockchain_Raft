@@ -7,35 +7,63 @@
 #include "parameter.h"
 
 class BalanceTable {
+    /**
+     * note: balance table file format
+     * line #1: amount_client_0 amount_client_1 amount_client_2 <- note: there is a space at the end.
+     */
     public:
-        BalanceTable () {}
-
+        // BalanceTable () {}
+        
         void load_file(std::string fname) {
             filename = fname;
             
-            std::ifstream infile;
-            infile.open(filename);
+            std::ifstream file(filename);
+            // check if the open is failed (file doesn't exist)
+            // if failed, initialize the balance table by giving all clients 10.0
+            if (!file.good()) {
+                std::fstream fs;
+                fs.open(filename, std::ios::out | std::ios::app);
+                std::stringstream ss;
+                for (int i = 0; i < CLIENT_COUNT; i++) {
+                    ss << "10.0 ";
+                }
+                fs.write(ss.str().c_str(), ss.str().size());
+                fs.close();
+            }
+
+            if (!file.is_open()) {
+                file.open(filename);
+            }
 
             std::string line;
-            if (infile.is_open()) {
-                getline(infile, line);
-                int i, start = 0;
-                for (i = 0; i < CLIENT_COUNT; i++) {
-                    int index = line.find(" ", start);
-                    if (index != std::string::npos) {
-                        std::string bal_str = line.substr(start, index - start);
-                        bal_tab[i] = stof(bal_str);
-                        start = index + 1;
-                    }
+            if (file.is_open()) {
+                getline(file, line);
+                std::stringstream ss(line);
+                std::vector<std::string> clients_balance_strs;
+                while (ss.good()) {
+                    std::string amount_str = "";
+                    ss >> amount_str;
+                    clients_balance_strs.push_back(amount_str);
                 }
-                // bal_tab[CLIENT_COUNT - 1] = stof(line.substr(start, line.size() - start));
+                
+                for (int client_id = 0; client_id < clients_balance_strs.size(); client_id++) {
+                    float amount;
+                    try {
+                        amount = stof(clients_balance_strs.at(client_id));
+                    } catch(...) {
+                        // std::cout << "[balancetable::load_file] failed to convert. check file text." << std::endl;
+                        // exit(1);
+                        continue;
+                    }
+                    bal_tab[client_id] = amount; 
+                }
             }
             else {
-                std::cerr << "Error: blockchain.h : parse_file_to_bc(): Unable to open file!" << std::endl;
+                std::cerr << "[BalanceTable::load_file] error: unable to open file!" << std::endl;
                 exit(0);
             }
 
-            infile.close();
+            file.close();
         }
 
         float get_balance(uint32_t id) {

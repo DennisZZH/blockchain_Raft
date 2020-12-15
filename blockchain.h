@@ -140,14 +140,31 @@ class Blockchain {
         *   line# n: ...
         * 
         *   note: each transaction has a flag to indicate either it's a balance or blockchain
-        *   [4 + 2] =  [-/+][xxxx][\n]
+        *   [4 + 2] =  [-/+][xxxx][\n][\0]
         */
         
-        Blockchain() {
-        }
-
         void load_file(std::string fname) {
             filename = fname;
+            std::ifstream file(filename);
+            // check if the path is existed
+            // if not, need to create the file first.
+            if(!file.good()) {
+                std::fstream fs;
+                std::cout << "[blockchain::load_file] couldn't find backup file, initialize it." << std::endl;
+                fs.open(filename.c_str(), std::ios::out | std::ios::app);
+                // construct the first line 
+                int bytes = NUM_DIGITS_COMMITTED_INDEX + 2;
+                char committed_index_str[NUM_DIGITS_COMMITTED_INDEX + 2];
+                std::fill_n(committed_index_str, bytes, '0');
+                committed_index_str[0] = '-';
+                committed_index_str[NUM_DIGITS_COMMITTED_INDEX] = '1';
+                committed_index_str[NUM_DIGITS_COMMITTED_INDEX + 1] = '\n';
+                // committed_index_str[NUM_DIGITS_COMMITTED_INDEX + 2] = '\0';
+                fs.write(committed_index_str, sizeof(committed_index_str));
+                fs.close();
+            } else {
+                file.close();
+            }
             parse_file_to_bc();
         }
 
@@ -158,8 +175,13 @@ class Blockchain {
             std::string line;
             if (infile.is_open()) {
                 getline(infile, line);
-                // [+0231\n]
-                committed_index = stoi(line);
+                std::cout << "line:" << line << std::endl;
+                try {
+                    committed_index = std::stoi(line);
+                } catch(...) {
+                    std::cout << "[blockchain::parse_file_to_bc] cannot convert line: " << line << std::endl;
+                    exit(1);
+                }
 
                 // note: read the rest of the lines and parse each of them to transactions
                 while (getline (infile, line)){
