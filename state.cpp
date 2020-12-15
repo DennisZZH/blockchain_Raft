@@ -164,9 +164,10 @@ void FollowerState::run() {
 
         // Handle received RPC
         if (msg.type == APP_ENTR_RPC) {
-            // std::cout<<"[State::FollowerState::run] Received a appendEntryRPC!"<<std::endl;
             auto append_rpc = (append_entry_rpc_t*) msg.payload;
             append_entry_reply_t reply;
+
+            std::cout<<"[State::FollowerState::run] received a <append entry rpc>!"<< (append_rpc->entries.size() ? "" : "heartbeat") <<std::endl;
             
             // Return failure if term is outdated (leader invalid)
             if (append_rpc->term < get_context()->get_curr_term()) { 
@@ -183,7 +184,7 @@ void FollowerState::run() {
                 last_time = std::chrono::system_clock::now();
                 // If the append RPC is just a heartbeat.
                 if (append_rpc->entries.size() == 0) {
-                     // std::cout<<"[State::FollowerState::run] This appendEntryRPC is a HeartBeat!"<<std::endl;
+                    //  std::cout<<"[State::FollowerState::run] This appendEntryRPC is a HeartBeat!"<<std::endl;
                     // Comfirm leader
                     if (append_rpc->leader_id != get_context()->get_curr_leader()) {
                         get_context()->set_curr_leader(append_rpc->leader_id);
@@ -377,7 +378,7 @@ void LeaderState::run() {
             replica_msg_wrapper_t msg;
             network->replica_pop_message(msg);
             if (msg.type == REQ_VOTE_RPC) {
-                 //std::cout<<"[State::LeaderState::run] Recv a requestVoteRPC!"<<std::endl;
+                 std::cout<<"[State::LeaderState::run] recv a <request vote rpc>!"<<std::endl;
                 request_vote_rpc_t* vote_rpc = (request_vote_rpc_t*) msg.payload;
                 if (vote_rpc->term > get_context()->get_curr_term()) {
                     // Step down
@@ -386,7 +387,7 @@ void LeaderState::run() {
                 }
             }
             else if (msg.type == APP_ENTR_RPC) {
-                //std::cout<<"[State::LeaderState::run] Recv a appendEntryRPC!"<<std::endl;
+                std::cout<<"[State::LeaderState::run] recv a <append entry rpc>!"<<std::endl;
                 append_entry_rpc_t* append_rpc = (append_entry_rpc_t*) msg.payload;
                 if (append_rpc->term > get_context()->get_curr_term()) {
                     // Step down
@@ -395,18 +396,18 @@ void LeaderState::run() {
                 }
             }
             else if (msg.type == APP_ENTR_RPL) {
-                //std::cout<<"[State::LeaderState::run] Recv a requestVoteRPC Reply!"<<std::endl;
+                std::cout<<"[State::LeaderState::run] recv a <request vote rpc reply>!"<<std::endl;
                 append_entry_reply_t* reply = (append_entry_reply_t*) msg.payload;
                 if (reply->term == get_context()->get_curr_term()) {
                     if (reply->success == true) {
                         // Append entry succeed
-                        std::cout<<"[State::LeaderState::run] Append succeed!"<<std::endl;
+                        std::cout<<"[State::LeaderState::run] append succeed!"<<std::endl;
                         num_accept++;
                         nextIndex[reply->sender_id] = get_context()->get_bc_log().get_blockchain_length() - 1;
                     }
                     else {
                         // Append failed due to log inconsistency, decrement nextIndex and retry
-                        std::cout<<"[State::LeaderState::run] Append failde due to log inconsistency, Retry!"<<std::endl;
+                        std::cout<<"[State::LeaderState::run] append failed due to log inconsistency, Retry!"<<std::endl;
                         nextIndex[reply->sender_id] = nextIndex[reply->sender_id] - 1;
                         prev_log_index = prev_log_index - 1;
 
