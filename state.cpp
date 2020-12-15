@@ -167,7 +167,7 @@ void FollowerState::run() {
             auto append_rpc = (append_entry_rpc_t*) msg.payload;
             append_entry_reply_t reply;
 
-            std::cout<<"[State::FollowerState::run] received a <append entry rpc>!"<< (append_rpc->entries.size() ? "" : "heartbeat") <<std::endl;
+            //std::cout<<"[State::FollowerState::run] received a <append entry rpc>!"<< (append_rpc->entries.size() ? "" : "heartbeat") <<std::endl;
             
             // Return failure if term is outdated (leader invalid)
             if (append_rpc->term < get_context()->get_curr_term()) { 
