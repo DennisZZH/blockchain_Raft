@@ -292,6 +292,8 @@ void LeaderState::run() {
     std::cout<<"[State::LeaderState::run] Running a Leader State!"<<std::endl;
     Network* network = get_context()->get_network();
 
+    // Leader set itself to be leader
+    get_context()->set_curr_leader(get_context()->get_id());
     // Initialize nextIndex for each replica to last log index + 1
     int last_log_index = get_context()->get_bc_log().get_last_index();
     for (int i = 0; i < SERVER_COUNT; i++) {
