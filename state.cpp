@@ -350,6 +350,20 @@ void LeaderState::run() {
                     return;
                 }
             }
+            else if (msg.type = APP_ENTR_RPL) {
+                append_entry_reply_t  *reply = (append_entry_reply_t *) msg.payload;
+                // Heartbeat reply
+                if (reply->term > get_context()->get_curr_term()) {
+                    get_context()->set_state(new FollowerState(get_context()));
+                    if (msg.payload != NULL) free(msg.payload);
+                    return;
+                }
+                // appendEntryRPC reply
+                if (reply->term == get_context()->get_curr_term() && reply->success) {
+                    // Need to update this follower's nextIndex
+                    nextIndex[reply->sender_id] = get_context()->get_bc_log().get_blockchain_length();
+                }
+            }
             else {
                 // Ignore all other type of msg
                 if (msg.payload != NULL) free(msg.payload);
