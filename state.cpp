@@ -404,7 +404,7 @@ void LeaderState::run() {
                         // Append entry succeed
                         std::cout<<"[State::LeaderState::run] Append succeed!"<<std::endl;
                         num_accept++;
-                        nextIndex[reply->sender_id] = get_context()->get_bc_log().get_blockchain_length() - 1;
+                        nextIndex[reply->sender_id] = get_context()->get_bc_log().get_blockchain_length();
                     }
                     else {
                         // Append failed due to log inconsistency, decrement nextIndex and retry
