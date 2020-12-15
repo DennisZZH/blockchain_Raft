@@ -451,6 +451,7 @@ void LeaderState::run() {
             auto dt = curr - last;
             auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(dt);
             if (ms.count() > LEADER_HANDLE_TIME_MS) {
+                std::cout << "Leader wait for accept timeout !" << std::endl;
                 timeout_flag = true;
                 break;
             }
@@ -480,7 +481,7 @@ void LeaderState::run() {
                 }
             }
             else if (msg.type == APP_ENTR_RPL) {
-                std::cout<<"[State::LeaderState::run] recv a <request vote rpc reply>!"<<std::endl;
+                std::cout<<"[State::LeaderState::run] recv a <append entry rpc reply>!"<<std::endl;
                 append_entry_reply_t* reply = (append_entry_reply_t*) msg.payload;
 
                 if (reply->term > get_context()->get_curr_term()) {
