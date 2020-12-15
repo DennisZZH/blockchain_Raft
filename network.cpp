@@ -161,6 +161,7 @@ void Network::replica_recv_handler() {
             append_reply->term = append_reply_msg.term();
             append_reply->sender_id = append_reply_msg.sender_id();
             append_reply->success = append_reply_msg.success();
+            append_reply->reply_hearbeat = append_reply_msg.reply_heartbeat();
             wrapper->payload = (void*) append_reply;
         } else {
             std::cout << "[Network::replica_recv_handler] received unknown type." << std::endl;
@@ -236,6 +237,7 @@ void Network::replica_send_message(replica_msg_wrapper_t &msg, int id) {
         append_reply_msg->set_term(append_reply->term);
         append_reply_msg->set_sender_id(append_reply->sender_id);
         append_reply_msg->set_success(append_reply->success);
+        append_reply_msg->set_reply_heartbeat(append_reply->reply_hearbeat);
         send_msg.set_allocated_append_entry_reply_msg(append_reply_msg);
     } else {
         std::cout << "[Network::replica_send_message] try to send unknown type." << std::endl;

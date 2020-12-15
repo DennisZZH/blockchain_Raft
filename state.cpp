@@ -168,6 +168,7 @@ void FollowerState::run() {
             append_entry_reply_t reply;
             reply.sender_id = get_context()->get_id();
             reply.success = false;
+            reply.reply_hearbeat = true;
 
             //std::cout<<"[State::FollowerState::run] received a <append entry rpc>!"<< (append_rpc->entries.size() ? "" : "heartbeat") <<std::endl;
             
@@ -200,6 +201,7 @@ void FollowerState::run() {
                     }
                     reply.term = get_context()->get_curr_term();
                     reply.success = true;
+                    reply.reply_hearbeat = true;
                 }
 
                 // [case][#2] If the append RPC contains log entries
@@ -214,6 +216,7 @@ void FollowerState::run() {
                 else {
                      // std::cout<<"[State::FollowerState::run] This appendEntryRPC contains Logs!"<<std::endl;
                     // Return failure if log doesn't contain an entry at prevLogIndex whose term matches prevLogTerm
+                    reply.reply_hearbeat = false;
                     if (get_context()->get_bc_log().get_last_index() < append_rpc->prev_log_index) {
                         std::cout<<"[State::FollowerState::run] append entry failed due to log inconsistency! index out of range." << std::endl;
                         reply.term = get_context()->get_curr_term();
@@ -325,10 +328,10 @@ void LeaderState::run() {
         auto dt = curr_time - last_heartbeat_time;
         auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(dt);
         
-        // if (ms.count() >= HEARTBEAT_PERIOD_MS) {
-        //     send_heartbeat();
-        //     continue;
-        // }
+        if (ms.count() >= HEARTBEAT_PERIOD_MS) {
+            send_heartbeat();
+            continue;
+        }
 
         // Check replica message before check client request
         if (network->replica_get_message_count() != 0) {
@@ -350,7 +353,8 @@ void LeaderState::run() {
                     return;
                 }
             }
-            else if (msg.type = APP_ENTR_RPL) {
+            // TODO: Check new code 
+            else if (msg.type == APP_ENTR_RPL) {
                 append_entry_reply_t  *reply = (append_entry_reply_t *) msg.payload;
                 // Heartbeat reply
                 if (reply->term > get_context()->get_curr_term()) {
@@ -376,9 +380,6 @@ void LeaderState::run() {
         // If the request buffer is empty then do nothing, waiting for another round to check.
         if (network->client_get_request_count() == 0) {
             std::this_thread::sleep_for(std::chrono::milliseconds(MSG_CHECK_SLEEP_MS));
-            if (ms.count() >= HEARTBEAT_PERIOD_MS) {
-                send_heartbeat();
-            }
             continue;
         }
 
@@ -434,7 +435,7 @@ void LeaderState::run() {
             }
             append_msg.entries = entries;
             msg.payload = (void*) &append_msg;
-             std::cout << "[State::LeaderState::run] sending <append entry rpc>!" << std::endl;
+            std::cout << "[State::LeaderState::run] sending <append entry rpc>!" << std::endl;
             network->replica_send_message(msg, i);
         }
 
@@ -469,8 +470,9 @@ void LeaderState::run() {
             else if (msg.type == APP_ENTR_RPL) {
                 std::cout<<"[State::LeaderState::run] recv a <request vote rpc reply>!"<<std::endl;
                 append_entry_reply_t* reply = (append_entry_reply_t*) msg.payload;
+
                 if (reply->term == get_context()->get_curr_term()) {
-                    if (reply->success == true) {
+                    if (reply->success == true && reply->reply_hearbeat == false) {
                         // Append entry succeed
                         std::cout<<"[State::LeaderState::run] append succeed! sender: " << reply->sender_id <<std::endl;
                         num_accept++;

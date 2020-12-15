@@ -73,4 +73,5 @@ message append_entry_reply_msg_t {
     required uint32 term = 1;
     required uint32 sender_id = 2;
     required bool success = 3;
+    required bool reply_heartbeat = 4;
 }
