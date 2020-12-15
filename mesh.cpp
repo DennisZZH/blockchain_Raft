@@ -7,7 +7,7 @@
 #include "raft.h"
 using namespace RaftMesh;
 
-#define DEBUG_MODE
+// #define DEBUG_MODE
 
 Mesh::Mesh() {
     setup_mesh_server();
@@ -144,6 +144,13 @@ void Mesh::wait_conn_handler() {
     }
 }
 
+ /*
+    ---------------  |
+    <-recv_handler   |
+    ---------------  |  replica
+                     |
+    ---------------  |
+ */
 void Mesh::recv_handler(int replica_id) {
     std::cout << "[Network::recv_handler] listening server: " << replica_id << " for messages." << std::endl;
     int replica_sock = servers[replica_id].sock;
@@ -174,8 +181,13 @@ void Mesh::recv_handler(int replica_id) {
         replica_msg->ParseFromArray(msg, msg_bytes);
         delete [] msg;
 
+        if (servers[replica_id].partitioned) {
+            delete replica_msg;
+            continue;
+        }
+
         uint32_t receiver_id = replica_msg->receiver_id();
-        if (servers[receiver_id].connected && !servers[receiver_id].partitioned) {
+        if (servers[receiver_id].connected) {
             trans_queue_item_t *trans_item = new trans_queue_item_t();
             trans_item->enqueue_time = clock_t::now();
             trans_item->msg = replica_msg;
@@ -195,6 +207,13 @@ void Mesh::recv_handler(int replica_id) {
     close(servers[replica_id].sock);
 }
 
+/*
+    ---------------  |
+                     |
+    ---------------  |  replica
+    send_handler->   |
+    ---------------  |
+*/
 void Mesh::send_handler(int replica_id) {
     int replica_sock = servers[replica_id].sock;
     while (!is_stopped && servers[replica_id].connected) {
