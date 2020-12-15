@@ -441,9 +441,20 @@ void LeaderState::run() {
         }
 
         int num_accept = 1;
+        int timeout_flag = false;
+        auto last = std::chrono::system_clock::now();
         // keep running if without getting majority
         // note: do we need to consider about the timeout here
         while (num_accept < SERVER_COUNT / 2 + 1) {
+            // Leader break out the loop of waiting accepts if Timeout
+            auto curr = std::chrono::system_clock::now();
+            auto dt = curr - last;
+            auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(dt);
+            if (dt > LEADER_HANDLE_TIME_MS) {
+                timeout_flag = true;
+                break;
+            }
+
             if (network->replica_get_message_count() == 0) {
                 std::this_thread::sleep_for(std::chrono::milliseconds(MSG_CHECK_SLEEP_MS));
                 continue;
@@ -478,6 +489,9 @@ void LeaderState::run() {
                 }
 
                 if (reply->term == get_context()->get_curr_term()) {
+                    // Reset timmer
+                    last = last = std::chrono::system_clock::now();
+                    
                     if (reply->success == true && reply->reply_hearbeat == false) {
                         // Append entry succeed
                         std::cout<<"[State::LeaderState::run] append succeed! sender: " << reply->sender_id <<std::endl;
@@ -517,7 +531,13 @@ void LeaderState::run() {
                 // Leader should ignore all other type of message
             }
         }
+        
         std::cout << "[State::LeaderState::run] stop waiting for majority commit result. num accepted: " << num_accept << std::endl;
+        
+        if (timeout_flag) {
+            // Reply failure to client   
+            continue;
+        }
 
         // Mark log committed if stored on a majority and at least one entry stored in the current term.
         // Execute the committed txn on balacne table, Also update committed index of the blockchain
